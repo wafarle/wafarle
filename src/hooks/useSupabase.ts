@@ -106,7 +106,20 @@ export const useProducts = () => {
       const { data, error } = await supabase
         .from('products')
         .select(`
-          *,
+          id,
+          name,
+          description,
+          category,
+          features,
+          icon,
+          color,
+          is_popular,
+          price,
+          max_users,
+          current_users,
+          available_slots,
+          created_at,
+          updated_at,
           pricing_tiers (*)
         `)
         .order('created_at', { ascending: false });

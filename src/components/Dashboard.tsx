@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
                     <p className="font-medium text-gray-900">ر.س {Number(subscription.pricing_tier?.price || 0).toFixed(2)}</p>
                     <p className="text-sm text-gray-500 flex items-center">
                       <Calendar className="w-3 h-3 ml-1" />
-                      {new Date(subscription.created_at).toLocaleDateString('ar-SA')}
+                      {new Date(subscription.created_at).toLocaleDateString('en-US')}
                     </p>
                   </div>
                 </div>

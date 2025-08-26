@@ -138,7 +138,7 @@ const Customers: React.FC = () => {
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between text-sm">
-              <span className="text-gray-600">انضم في: <span className="font-medium">{new Date(customer.created_at).toLocaleDateString('ar-SA')}</span></span>
+              <span className="text-gray-600">انضم في: <span className="font-medium">{new Date(customer.created_at).toLocaleDateString('en-US')}</span></span>
             </div>
           </div>
         ))}

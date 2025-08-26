@@ -280,10 +280,10 @@ const Invoices: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(invoice.issue_date).toLocaleDateString('ar-SA')}
+                    {new Date(invoice.issue_date).toLocaleDateString('en-US')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(invoice.due_date).toLocaleDateString('ar-SA')}
+                    {new Date(invoice.due_date).toLocaleDateString('en-US')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

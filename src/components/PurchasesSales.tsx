@@ -78,7 +78,7 @@ const PurchasesSales: React.FC = () => {
 
   // Statistics
   const totalPurchases = purchases.length;
-  const totalSales = sales.length;
+  const totalSales = sales.filter(s => s.status === 'active').length;
   const totalPurchasesCost = purchases.reduce((sum, p) => sum + Number(p.purchase_price), 0);
   const totalSalesRevenue = sales.filter(s => s.status === 'active').reduce((sum, s) => sum + Number(s.sale_price), 0);
   
@@ -298,8 +298,9 @@ const PurchasesSales: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">إجمالي المبيعات</p>
+              <p className="text-sm font-medium text-gray-600">المبيعات النشطة</p>
               <p className="text-xl font-bold text-gray-900">{totalSales}</p>
+              <p className="text-xs text-green-600">من أصل {sales.length}</p>
             </div>
           </div>
         </div>
@@ -361,7 +362,7 @@ const PurchasesSales: React.FC = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            المبيعات ({totalSales})
+            المبيعات ({sales.length})
           </button>
         </nav>
       </div>

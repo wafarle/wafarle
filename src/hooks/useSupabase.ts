@@ -692,9 +692,11 @@ export const useSales = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Sales data loaded:', data?.length || 0, 'sales');
       setSales(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل المبيعات');
+      console.error('Error loading sales:', err);
     } finally {
       setLoading(false);
     }

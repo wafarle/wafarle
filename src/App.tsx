@@ -8,6 +8,7 @@ import Customers from './components/Customers';
 import Subscriptions from './components/Subscriptions';
 import Invoices from './components/Invoices';
 import PurchasesSales from './components/PurchasesSales';
+import ProfitLoss from './components/ProfitLoss';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();

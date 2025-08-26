@@ -20,7 +20,23 @@ const Invoices: React.FC = () => {
   });
 
   // Get customer's active subscriptions
-  const customerSubscriptions = subscriptions.filter(
+  const customerSubscriptions = subscriptions.filter(sub => {
+    // فلترة الاشتراكات النشطة للعميل المحدد
+    if (sub.customer_id !== formData.customer_id || sub.status !== 'active') {
+      return false;
+    }
+    
+    // إخفاء الاشتراكات التي لها فواتير موجودة (إلا إذا كنا نعدل فاتورة موجودة)
+    const hasExistingInvoice = invoices.some(invoice => 
+      invoice.subscription_id === sub.id && 
+      (!editingInvoice || invoice.id !== editingInvoice.id)
+    );
+    
+    return !hasExistingInvoice;
+  });
+
+  // Get all customer subscriptions (including those with invoices) for editing
+  const allCustomerSubscriptions = subscriptions.filter(
     sub => sub.customer_id === formData.customer_id && sub.status === 'active'
   );
 
@@ -433,13 +449,20 @@ ${paypalLink}
               </div>
               
               {/* Customer's Subscriptions */}
-              {formData.customer_id && customerSubscriptions.length > 0 && (
+              {formData.customer_id && (editingInvoice ? allCustomerSubscriptions : customerSubscriptions).length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    اشتراكات العميل ({customerSubscriptions.length})
+                    اشتراكات العميل ({(editingInvoice ? allCustomerSubscriptions : customerSubscriptions).length})
                   </label>
                   <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                    {customerSubscriptions.map((subscription) => (
+                    {(editingInvoice ? allCustomerSubscriptions : customerSubscriptions).map((subscription) => {
+                      // التحقق من وجود فاتورة لهذا الاشتراك
+                      const hasInvoice = invoices.some(invoice => 
+                        invoice.subscription_id === subscription.id && 
+                        (!editingInvoice || invoice.id !== editingInvoice.id)
+                      );
+                      
+                      return (
                       <div key={subscription.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center">
                           <input
@@ -447,11 +470,17 @@ ${paypalLink}
                             id={`sub-${subscription.id}`}
                             checked={formData.selected_subscriptions.includes(subscription.id)}
                             onChange={() => handleSubscriptionToggle(subscription.id)}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                            disabled={hasInvoice && !editingInvoice}
+                            className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 ${
+                              hasInvoice && !editingInvoice ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           />
                           <label htmlFor={`sub-${subscription.id}`} className="mr-3 cursor-pointer">
                             <div className="font-medium text-gray-900">
                               {subscription.pricing_tier?.product?.name || 'منتج غير محدد'}
+                              {hasInvoice && !editingInvoice && (
+                                <span className="text-xs text-orange-600 mr-2">(له فاتورة)</span>
+                              )}
                             </div>
                             <div className="text-sm text-gray-500">
                               {subscription.pricing_tier?.name} - 
@@ -471,18 +500,22 @@ ${paypalLink}
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* No subscriptions message */}
-              {formData.customer_id && customerSubscriptions.length === 0 && (
+              {formData.customer_id && (editingInvoice ? allCustomerSubscriptions : customerSubscriptions).length === 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-center">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 ml-2" />
                     <span className="text-sm text-yellow-800">
-                      لا توجد اشتراكات نشطة لهذا العميل
+                      {editingInvoice 
+                        ? 'لا توجد اشتراكات نشطة لهذا العميل'
+                        : 'لا توجد اشتراكات متاحة لهذا العميل (جميع الاشتراكات لها فواتير موجودة)'
+                      }
                     </span>
                   </div>
                 </div>

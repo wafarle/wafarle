@@ -344,7 +344,7 @@ const Products: React.FC = () => {
                         selected_purchase_id: e.target.value,
                         name: selectedPurchase ? selectedPurchase.service_name : prev.name,
                         max_users: selectedPurchase ? selectedPurchase.max_users : prev.max_users,
-                        price: selectedPurchase ? Number(selectedPurchase.purchase_price) / selectedPurchase.max_users : prev.price
+                        price: selectedPurchase ? (Number(selectedPurchase.sale_price_per_user) || (Number(selectedPurchase.purchase_price) / selectedPurchase.max_users)) : prev.price
                       }));
                     }}
                     className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"

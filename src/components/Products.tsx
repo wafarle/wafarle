@@ -13,7 +13,8 @@ import {
   Tv,
   Paintbrush2,
   Loader2,
-  Package
+  Package,
+  Eye
 } from 'lucide-react';
 import { useProducts, usePurchases } from '../hooks/useSupabase';
 import { Product } from '../types';

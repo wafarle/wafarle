@@ -20,6 +20,7 @@ import { Product } from '../types';
 
 const Products: React.FC = () => {
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { purchases } = usePurchases();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -34,7 +35,8 @@ const Products: React.FC = () => {
     color: 'from-blue-500 to-purple-500',
     is_popular: false,
     max_users: 1,
-    available_slots: 0
+    available_slots: 0,
+    selected_purchase_id: ''
   });
 
   const iconOptions = [
@@ -64,6 +66,10 @@ const Products: React.FC = () => {
     { id: 'entertainment', name: 'الترفيه', count: products.filter(p => p.category === 'entertainment').length }
   ];
 
+  // Get available purchases (active and not linked to any product)
+  const availablePurchases = purchases.filter(purchase => 
+    purchase.status === 'active' && !purchase.product_id
+  );
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -74,11 +80,22 @@ const Products: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Remove selected_purchase_id from form data before submitting
+    const { selected_purchase_id, ...productData } = formData;
+    
     let result;
     if (editingProduct) {
-      result = await updateProduct(editingProduct.id, formData);
+      result = await updateProduct(editingProduct.id, productData);
     } else {
-      result = await addProduct(formData);
+      result = await addProduct(productData);
+    }
+
+    if (result.success && selected_purchase_id && !editingProduct) {
+      // Link the purchase to the newly created product
+      const { updatePurchase } = usePurchases();
+      await updatePurchase(selected_purchase_id, { 
+        product_id: result.data.id 
+      });
     }
 
     if (result.success) {
@@ -94,7 +111,8 @@ const Products: React.FC = () => {
         color: 'from-blue-500 to-purple-500',
         is_popular: false,
         max_users: 1,
-        available_slots: 0
+        available_slots: 0,
+        selected_purchase_id: ''
       });
     }
   };
@@ -111,7 +129,8 @@ const Products: React.FC = () => {
       color: product.color,
       is_popular: product.is_popular,
       max_users: product.max_users || 1,
-      available_slots: product.available_slots || 0
+      available_slots: product.available_slots || 0,
+      selected_purchase_id: ''
     });
     setShowAddModal(true);
   };
@@ -304,6 +323,39 @@ const Products: React.FC = () => {
               </h2>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Link to existing purchase - only when adding new product */}
+              {!editingProduct && availablePurchases.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-blue-900 mb-2">
+                    ربط بمشتريات موجودة (اختياري)
+                  </label>
+                  <select
+                    value={formData.selected_purchase_id}
+                    onChange={(e) => {
+                      const selectedPurchase = purchases.find(p => p.id === e.target.value);
+                      setFormData(prev => ({
+                        ...prev,
+                        selected_purchase_id: e.target.value,
+                        name: selectedPurchase ? selectedPurchase.service_name : prev.name,
+                        max_users: selectedPurchase ? selectedPurchase.max_users : prev.max_users,
+                        price: selectedPurchase ? Number(selectedPurchase.purchase_price) / selectedPurchase.max_users : prev.price
+                      }));
+                    }}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">اختر مشتريات لربطها بالمنتج</option>
+                    {availablePurchases.map(purchase => (
+                      <option key={purchase.id} value={purchase.id}>
+                        {purchase.service_name} - {purchase.max_users} مستخدم - {Number(purchase.purchase_price).toFixed(2)} ريال
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-blue-600 mt-2">
+                    سيتم ملء بيانات المنتج تلقائياً من المشتريات المحددة
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">اسم المنتج</label>
                 <input
@@ -350,9 +402,17 @@ const Products: React.FC = () => {
                     min="1"
                     value={formData.max_users}
                     onChange={(e) => setFormData(prev => ({ ...prev, max_users: parseInt(e.target.value) || 1 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      formData.selected_purchase_id ? 'bg-gray-100' : ''
+                    }`}
                     placeholder="1"
+                    readOnly={!!formData.selected_purchase_id}
                   />
+                  {formData.selected_purchase_id && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      العدد مأخوذ من المشتريات المحددة
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -446,7 +506,8 @@ const Products: React.FC = () => {
                       color: 'from-blue-500 to-purple-500',
                       is_popular: false,
                       max_users: 1,
-                      available_slots: 0
+                      available_slots: 0,
+                      selected_purchase_id: ''
                     });
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"

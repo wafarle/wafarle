@@ -15,7 +15,7 @@ import {
   Loader2,
   Package
 } from 'lucide-react';
-import { useProducts } from '../hooks/useSupabase';
+import { useProducts, usePurchases } from '../hooks/useSupabase';
 import { Product } from '../types';
 
 const Products: React.FC = () => {

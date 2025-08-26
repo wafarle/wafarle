@@ -514,4 +514,4 @@ ${paypalLink}
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الاستحقاق</label>
                   <input
                     type="date"
-                    require
+                    required

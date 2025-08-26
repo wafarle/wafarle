@@ -74,19 +74,14 @@ const Products: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const result = await addProduct(formData);
+    let result;
+    if (editingProduct) {
+      result = await updateProduct(editingProduct.id, formData);
     } else {
-      result = await addProduct(productData);
+      result = await addProduct(formData);
     }
 
     if (result.success) {
-      // إذا تم اختيار مشتريات، قم بربطها بالمنتج
-      if (selectedPurchase) {
-        await updatePurchase(selectedPurchase.id, { 
-          product_id: result.data.id 
-        });
-      }
-      
       setShowAddModal(false);
       setEditingProduct(null);
       setFormData({
@@ -359,19 +354,20 @@ const Products: React.FC = () => {
                     placeholder="1"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الفئة</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="productivity">الإنتاجية</option>
-                    <option value="design">التصميم</option>
-                    <option value="ai">الذكاء الاصطناعي</option>
-                    <option value="entertainment">الترفيه</option>
-                  </select>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الفئة</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="productivity">الإنتاجية</option>
+                  <option value="design">التصميم</option>
+                  <option value="ai">الذكاء الاصطناعي</option>
+                  <option value="entertainment">الترفيه</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

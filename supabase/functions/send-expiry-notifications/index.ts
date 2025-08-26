@@ -79,9 +79,12 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
                 
                 <p>لضمان استمرارية الخدمة، يرجى تجديد اشتراكك قبل انتهاء الصلاحية.</p>
                 
-                <div style="text-align: center;">
-                    <a href="#" class="renew-button">تجديد الاشتراك الآن</a>
-                </div>
+                <p><strong>للتجديد أو الاستفسار:</strong></p>
+                <ul>
+                    <li>📧 البريد الإلكتروني: support@yourcompany.com</li>
+                    <li>📱 الهاتف: +966501234567</li>
+                    <li>💬 واتساب: +966501234567</li>
+                </ul>
                 
                 <p>إذا كان لديك أي استفسارات، لا تتردد في التواصل معنا.</p>
                 
@@ -90,7 +93,7 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
             
             <div class="footer">
                 <p>هذه رسالة تلقائية من نظام إدارة الاشتراكات</p>
-                <p>© 2024 جميع الحقوق محفوظة</p>
+                <p>© 2025 جميع الحقوق محفوظة</p>
             </div>
         </div>
     </body>
@@ -101,8 +104,7 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
 // إرسال البريد الإلكتروني باستخدام خدمة خارجية (مثل SendGrid أو Resend)
 const sendEmail = async (emailData: EmailData): Promise<boolean> => {
   try {
-    // يمكنك استخدام أي خدمة بريد إلكتروني هنا
-    // مثال باستخدام Resend API
+    // استخدام Resend API لإرسال البريد الإلكتروني
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -110,12 +112,18 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'نظام الاشتراكات <noreply@yourdomain.com>',
+        from: 'نظام الاشتراكات <onboarding@resend.dev>',
         to: [emailData.to],
         subject: emailData.subject,
         html: emailData.html,
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Resend API Error:', response.status, errorData);
+      return false;
+    }
 
     return response.ok;
   } catch (error) {

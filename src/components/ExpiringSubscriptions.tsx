@@ -146,13 +146,13 @@ const ExpiringSubscriptions: React.FC = () => {
       const result = await response.json();
 
       if (result.success) {
-        setNotificationResult(`✅ ${result.message}`);
+        setNotificationResult(`✅ تم الإرسال بنجاح! ${result.message}`);
       } else {
         setNotificationResult(`❌ خطأ: ${result.error}`);
       }
     } catch (error) {
       console.error('Error sending notifications:', error);
-      setNotificationResult('❌ حدث خطأ في إرسال التنبيهات');
+      setNotificationResult('❌ حدث خطأ في الاتصال بخدمة البريد الإلكتروني');
     } finally {
       setSendingNotifications(false);
     }
@@ -497,10 +497,11 @@ const ExpiringSubscriptions: React.FC = () => {
           <div>
             <h4 className="font-medium text-blue-900 mb-2">إعداد خدمة البريد الإلكتروني:</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• تأكد من إعداد متغير البيئة <code className="bg-blue-100 px-1 rounded">RESEND_API_KEY</code></li>
-              <li>• يمكنك استخدام خدمات أخرى مثل SendGrid أو Mailgun</li>
+              <li>• ✅ تم إعداد مفتاح Resend API بنجاح</li>
+              <li>• البريد المرسل من: <code className="bg-blue-100 px-1 rounded">onboarding@resend.dev</code></li>
               <li>• سيتم إرسال تنبيهات للاشتراكات التي تنتهي خلال 5 أيام</li>
               <li>• الرسائل تحتوي على تفاصيل الاشتراك وتاريخ الانتهاء</li>
+              <li>• يمكن تخصيص معلومات التواصل في الرسالة</li>
             </ul>
           </div>
         </div>

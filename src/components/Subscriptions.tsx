@@ -7,8 +7,8 @@ import { Subscription } from '../types';
 const Subscriptions: React.FC = () => {
   const { subscriptions, loading, error, addSubscription, updateSubscription, deleteSubscription } = useSubscriptions();
   const { customers } = useCustomers();
-  const { products } = useProducts();
-  const { purchases } = usePurchases();
+  const { products, fetchProducts } = useProducts();
+  const { purchases, refetch: refetchPurchases } = usePurchases();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -122,6 +122,10 @@ const Subscriptions: React.FC = () => {
     }
 
     if (result.success) {
+      // تحديث البيانات في الواجهة
+      await fetchProducts();
+      await refetchPurchases();
+      
       setShowAddModal(false);
       setEditingSubscription(null);
       setFormData({

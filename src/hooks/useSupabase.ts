@@ -264,6 +264,29 @@ export const useSubscriptions = () => {
 
       if (error) throw error;
       
+      // تحديث عدد المستخدمين في المنتج إذا كان مربوط بمشتريات
+      if (subscription.purchase_id) {
+        // جلب بيانات المشتريات
+        const { data: purchaseData } = await supabase
+          .from('purchases')
+          .select('product_id, current_users, max_users')
+          .eq('id', subscription.purchase_id)
+          .single();
+
+        if (purchaseData?.product_id) {
+          // تحديث عدد المستخدمين في المنتج
+          const newCurrentUsers = (purchaseData.current_users || 0) + 1;
+          const availableSlots = purchaseData.max_users - newCurrentUsers;
+          
+          await supabase
+            .from('products')
+            .update({
+              current_users: newCurrentUsers,
+              available_slots: Math.max(0, availableSlots)
+            })
+            .eq('id', purchaseData.product_id);
+        }
+      }
       // إعادة تحميل المنتجات لتحديث عدد المستخدمين المتاحين
       await fetchProducts();
       

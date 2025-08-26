@@ -794,21 +794,21 @@ export const useProfitLoss = () => {
     try {
       setLoading(true);
       
-      // جلب الفواتير المدفوعة مع تفاصيل الاشتراكات والمشتريات
+      // جلب الفواتير المدفوعة
       const { data: paidInvoices, error: invoicesError } = await supabase
         .from('invoices')
         .select(`
           *,
           invoice_items(*,
             subscription:subscriptions(*,
-              purchase:purchases(*),
+              purchase:purchases!left(*),
               pricing_tier:pricing_tiers(*,
                 product:products(*)
               )
             )
           ),
           subscription:subscriptions(*,
-            purchase:purchases(*),
+            purchase:purchases!left(*),
             pricing_tier:pricing_tiers(*,
               product:products(*)
             )
@@ -818,12 +818,6 @@ export const useProfitLoss = () => {
 
       if (invoicesError) throw invoicesError;
 
-      // جلب جميع المشتريات لحساب التكاليف
-      const { data: purchases, error: purchasesError } = await supabase
-        .from('purchases')
-        .select('*');
-
-      if (purchasesError) throw purchasesError;
 
       // جلب جميع المبيعات النشطة
       const { data: activeSales, error: salesError } = await supabase
@@ -840,7 +834,7 @@ export const useProfitLoss = () => {
       const monthlyData: { [key: string]: { revenue: number; costs: number } } = {};
       const productData: { [key: string]: { revenue: number; costs: number; sales: number; name: string } } = {};
 
-      // حساب الإيرادات من الفواتير المدفوعة والتكاليف المرتبطة
+      // حساب الإيرادات من الفواتير المدفوعة
       paidInvoices?.forEach(invoice => {
         const revenue = Number(invoice.total_amount || invoice.amount);
         totalRevenue += revenue;
@@ -868,9 +862,9 @@ export const useProfitLoss = () => {
             productData[productName].revenue += Number(item.amount);
             productData[productName].sales += 1;
 
-            // حساب التكلفة
-            if (subscription?.purchase_id) {
-              const purchase = purchases?.find(p => p.id === subscription.purchase_id);
+            // حساب التكلفة من المشتريات المرتبطة
+            if (subscription?.purchase) {
+              const purchase = subscription.purchase;
               if (purchase) {
                 const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
                 totalCosts += costPerUser;
@@ -889,9 +883,9 @@ export const useProfitLoss = () => {
           productData[productName].revenue += revenue;
           productData[productName].sales += 1;
 
-          // حساب التكلفة
-          if (invoice.subscription?.purchase_id) {
-            const purchase = purchases?.find(p => p.id === invoice.subscription.purchase_id);
+          // حساب التكلفة من المشتريات المرتبطة
+          if (invoice.subscription?.purchase) {
+            const purchase = invoice.subscription.purchase;
             if (purchase) {
               const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
               totalCosts += costPerUser;

@@ -81,7 +81,18 @@ const PurchasesSales: React.FC = () => {
   const totalSales = sales.length;
   const totalPurchasesCost = purchases.reduce((sum, p) => sum + Number(p.purchase_price), 0);
   const totalSalesRevenue = sales.filter(s => s.status === 'active').reduce((sum, s) => sum + Number(s.sale_price), 0);
-  const totalProfit = totalSalesRevenue - totalPurchasesCost;
+  
+  // حساب التكلفة الفعلية للمبيعات فقط (وليس كل المشتريات)
+  const actualSalesCost = sales.filter(s => s.status === 'active').reduce((sum, s) => {
+    const purchase = purchases.find(p => p.id === s.purchase_id);
+    if (purchase) {
+      const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+      return sum + costPerUser;
+    }
+    return sum;
+  }, 0);
+  
+  const totalProfit = totalSalesRevenue - actualSalesCost;
 
   const handlePurchaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,8 +309,8 @@ const PurchasesSales: React.FC = () => {
               <DollarSign className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">تكلفة المشتريات</p>
-              <p className="text-lg font-bold text-gray-900">ر.س {totalPurchasesCost.toFixed(2)}</p>
+              <p className="text-sm font-medium text-gray-600">تكلفة المبيعات</p>
+              <p className="text-lg font-bold text-gray-900">ر.س {actualSalesCost.toFixed(2)}</p>
             </div>
           </div>
         </div>

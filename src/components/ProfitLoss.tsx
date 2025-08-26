@@ -214,15 +214,18 @@ const ProfitLoss: React.FC = () => {
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
         <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
           <BarChart3 className="w-5 h-5 ml-2" />
-          نظرة عامة
+          ملخص الحسابات
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div className="space-y-2">
             <p className="text-blue-800">
-              <strong>إجمالي الفواتير المدفوعة:</strong> {revenueByMonth.reduce((sum, month) => sum + month.revenue, 0) > 0 ? 'متوفر' : 'غير متوفر'}
+              <strong>عدد الفواتير المدفوعة:</strong> {revenueByMonth.length > 0 ? 'متوفر' : 'غير متوفر'}
             </p>
             <p className="text-blue-800">
               <strong>متوسط الربح الشهري:</strong> ر.س {revenueByMonth.length > 0 ? (netProfit / revenueByMonth.length).toFixed(2) : '0.00'}
+            </p>
+            <p className="text-blue-800">
+              <strong>معدل هامش الربح:</strong> {profitMargin.toFixed(1)}%
             </p>
           </div>
           <div className="space-y-2">
@@ -234,6 +237,9 @@ const ProfitLoss: React.FC = () => {
               <span className={`font-bold mr-1 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {netProfit >= 0 ? 'مربح' : 'خاسر'}
               </span>
+            </p>
+            <p className="text-blue-800">
+              <strong>إجمالي المنتجات:</strong> {topProducts.length}
             </p>
           </div>
         </div>

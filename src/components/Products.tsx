@@ -20,7 +20,7 @@ import { Product } from '../types';
 
 const Products: React.FC = () => {
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
-  const { purchases } = usePurchases();
+  const { purchases, updatePurchase } = usePurchases();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -92,7 +92,6 @@ const Products: React.FC = () => {
 
     if (result.success && selected_purchase_id && !editingProduct) {
       // Link the purchase to the newly created product
-      const { updatePurchase } = usePurchases();
       await updatePurchase(selected_purchase_id, { 
         product_id: result.data.id 
       });

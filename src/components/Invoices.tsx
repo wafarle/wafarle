@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Download, Eye, DollarSign, Calendar, AlertTriangle, Loader2, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Download, Eye, DollarSign, Calendar, AlertTriangle, Loader2, Edit, Trash2, Link, Copy, Check } from 'lucide-react';
 import { useInvoices, useSubscriptions, useCustomers } from '../hooks/useSupabase';
 import { Invoice, Subscription } from '../types';
 
@@ -11,6 +11,7 @@ const Invoices: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [copiedInvoiceId, setCopiedInvoiceId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     customer_id: '',
     selected_subscriptions: [] as string[],
@@ -79,6 +80,53 @@ const Invoices: React.FC = () => {
         amount: 0,
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       });
+    }
+  };
+
+  // Generate PayPal payment link
+  const generatePayPalLink = (invoice: Invoice) => {
+    const baseUrl = 'https://www.paypal.com/paypalme/YourPayPalUsername';
+    const amount = Number(invoice.amount).toFixed(2);
+    const currency = 'USD'; // PayPal uses USD, you can convert SAR to USD
+    const description = `فاتورة رقم ${invoice.id.slice(-8)} - ${invoice.customer?.name}`;
+    
+    // PayPal.me link format
+    return `${baseUrl}/${amount}${currency}`;
+  };
+
+  // Copy payment link to clipboard
+  const copyPaymentLink = async (invoice: Invoice) => {
+    const paypalLink = generatePayPalLink(invoice);
+    const customerName = invoice.customer?.name || 'العميل';
+    const invoiceNumber = invoice.id.slice(-8);
+    const amount = Number(invoice.amount).toFixed(2);
+    
+    const message = `مرحباً ${customerName}،
+
+نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amount} ريال سعودي.
+
+يمكنك الدفع بسهولة عبر الرابط التالي:
+${paypalLink}
+
+شكراً لك على ثقتك بنا.
+
+مع أطيب التحيات،
+فريق الدعم`;
+
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopiedInvoiceId(invoice.id);
+      setTimeout(() => setCopiedInvoiceId(null), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = message;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopiedInvoiceId(invoice.id);
+      setTimeout(() => setCopiedInvoiceId(null), 2000);
     }
   };
 
@@ -302,6 +350,17 @@ const Invoices: React.FC = () => {
                         <Download className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => copyPaymentLink(invoice)}
+                        className="text-purple-600 hover:text-purple-900 p-1 hover:bg-purple-50 rounded transition-colors"
+                        title="نسخ رابط الدفع"
+                      >
+                        {copiedInvoiceId === invoice.id ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Link className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
                         onClick={() => handleEdit(invoice)}
                         className="text-gray-600 hover:text-gray-900 p-1 hover:bg-gray-50 rounded"
                       >
@@ -327,6 +386,22 @@ const Invoices: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Payment Link Instructions */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <Link className="w-5 h-5 text-blue-600 ml-3 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-blue-900 mb-2">كيفية استخدام روابط الدفع:</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• اضغط على أيقونة الرابط بجانب الفاتورة لنسخ رسالة الدفع</li>
+              <li>• سيتم نسخ رسالة جاهزة تحتوي على رابط PayPal للدفع</li>
+              <li>• أرسل الرسالة للعميل عبر WhatsApp أو البريد الإلكتروني</li>
+              <li>• تأكد من تحديث اسم المستخدم في PayPal في الكود</li>
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -439,69 +514,4 @@ const Invoices: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الاستحقاق</label>
                   <input
                     type="date"
-                    required
-                    value={formData.due_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Invoice Summary */}
-              {formData.selected_subscriptions.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-3">ملخص الفاتورة:</h4>
-                  <div className="space-y-2">
-                    {formData.selected_subscriptions.map(subId => {
-                      const subscription = subscriptions.find(s => s.id === subId);
-                      const price = subscription?.final_price || subscription?.pricing_tier?.price || 0;
-                      return (
-                        <div key={subId} className="flex justify-between text-sm text-blue-800">
-                          <span>{subscription?.pricing_tier?.product?.name}</span>
-                          <span>{Number(price).toFixed(2)} ريال</span>
-                        </div>
-                      );
-                    })}
-                    <div className="border-t border-blue-200 pt-2 mt-2">
-                      <div className="flex justify-between font-bold text-blue-900">
-                        <span>المجموع الإجمالي:</span>
-                        <span>{formData.amount.toFixed(2)} ريال</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3 space-x-reverse pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingInvoice(null);
-                    setFormData({
-                      customer_id: '',
-                      selected_subscriptions: [],
-                      amount: 0,
-                      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                    });
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {editingInvoice ? 'تحديث الفاتورة' : 'إنشاء الفاتورة'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Invoices;
+                    require

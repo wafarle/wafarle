@@ -42,6 +42,8 @@ const AppContent: React.FC = () => {
         return <Invoices />;
       case 'purchases-sales':
         return <PurchasesSales />;
+      case 'profit-loss':
+        return <ProfitLoss />;
       default:
         return <Dashboard />;
     }

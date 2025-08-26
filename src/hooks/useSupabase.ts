@@ -731,3 +731,135 @@ export const useSales = () => {
     refetch: fetchSales
   };
 };
+
+// Hook للمكاسب والخسائر
+export const useProfitLoss = () => {
+  const [profitLossData, setProfitLossData] = useState({
+    totalRevenue: 0,
+    totalCosts: 0,
+    netProfit: 0,
+    profitMargin: 0,
+    revenueByMonth: [] as Array<{ month: string; revenue: number; costs: number; profit: number }>,
+    topProducts: [] as Array<{ product: string; revenue: number; profit: number; sales: number }>
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const calculateProfitLoss = async () => {
+    try {
+      setLoading(true);
+      
+      // جلب الفواتير المدفوعة
+      const { data: paidInvoices, error: invoicesError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          subscription:subscriptions(*,
+            purchase:purchases(*),
+            pricing_tier:pricing_tiers(*,
+              product:products(*)
+            )
+          )
+        `)
+        .eq('status', 'paid');
+
+      if (invoicesError) throw invoicesError;
+
+      // جلب جميع المشتريات لحساب التكاليف
+      const { data: purchases, error: purchasesError } = await supabase
+        .from('purchases')
+        .select('*');
+
+      if (purchasesError) throw purchasesError;
+
+      let totalRevenue = 0;
+      let totalCosts = 0;
+      const monthlyData: { [key: string]: { revenue: number; costs: number } } = {};
+      const productData: { [key: string]: { revenue: number; costs: number; sales: number; name: string } } = {};
+
+      // حساب الإيرادات من الفواتير المدفوعة
+      paidInvoices?.forEach(invoice => {
+        const revenue = Number(invoice.amount);
+        totalRevenue += revenue;
+
+        // تجميع البيانات حسب الشهر
+        const month = new Date(invoice.paid_date || invoice.issue_date).toLocaleDateString('ar-SA', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+        
+        if (!monthlyData[month]) {
+          monthlyData[month] = { revenue: 0, costs: 0 };
+        }
+        monthlyData[month].revenue += revenue;
+
+        // تجميع البيانات حسب المنتج
+        const productName = invoice.subscription?.pricing_tier?.product?.name || 'غير محدد';
+        if (!productData[productName]) {
+          productData[productName] = { revenue: 0, costs: 0, sales: 0, name: productName };
+        }
+        productData[productName].revenue += revenue;
+        productData[productName].sales += 1;
+
+        // حساب التكلفة المرتبطة بهذه الفاتورة
+        if (invoice.subscription?.purchase_id) {
+          const purchase = purchases?.find(p => p.id === invoice.subscription.purchase_id);
+          if (purchase) {
+            const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+            const cost = costPerUser; // تكلفة مستخدم واحد
+            totalCosts += cost;
+            monthlyData[month].costs += cost;
+            productData[productName].costs += cost;
+          }
+        }
+      });
+
+      // تحويل البيانات الشهرية إلى مصفوفة
+      const revenueByMonth = Object.entries(monthlyData).map(([month, data]) => ({
+        month,
+        revenue: data.revenue,
+        costs: data.costs,
+        profit: data.revenue - data.costs
+      })).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+      // تحويل بيانات المنتجات إلى مصفوفة وترتيبها
+      const topProducts = Object.values(productData)
+        .map(product => ({
+          product: product.name,
+          revenue: product.revenue,
+          profit: product.revenue - product.costs,
+          sales: product.sales
+        }))
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 10);
+
+      const netProfit = totalRevenue - totalCosts;
+      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+      setProfitLossData({
+        totalRevenue,
+        totalCosts,
+        netProfit,
+        profitMargin,
+        revenueByMonth,
+        topProducts
+      });
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في حساب المكاسب والخسائر');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    calculateProfitLoss();
+  }, []);
+
+  return {
+    profitLossData,
+    loading,
+    error,
+    refetch: calculateProfitLoss
+  };
+};

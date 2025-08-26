@@ -30,6 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCard },
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'purchases-sales', label: 'المشتريات والمبيعات', icon: ShoppingBag },
+    { id: 'profit-loss', label: 'المكاسب والخسائر', icon: TrendingUp },
   ];
 
   const handleSignOut = async () => {

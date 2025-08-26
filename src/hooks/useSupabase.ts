@@ -198,7 +198,8 @@ export const useProducts = () => {
     addProduct,
     updateProduct,
     deleteProduct,
-    refetch: fetchProducts
+    refetch: fetchProducts,
+    fetchProducts
   };
 };
 
@@ -207,6 +208,7 @@ export const useSubscriptions = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { fetchProducts } = useProducts();
 
   const fetchSubscriptions = async () => {
     try {
@@ -240,6 +242,9 @@ export const useSubscriptions = () => {
     purchase_id?: string | null;
     start_date: string;
     end_date: string;
+    discount_percentage?: number;
+    final_price?: number;
+    custom_price?: number | null;
   }) => {
     try {
       const { data, error } = await supabase
@@ -258,6 +263,10 @@ export const useSubscriptions = () => {
         .single();
 
       if (error) throw error;
+      
+      // إعادة تحميل المنتجات لتحديث عدد المستخدمين المتاحين
+      await fetchProducts();
+      
       setSubscriptions(prev => [data, ...prev]);
       return { success: true, data };
     } catch (err) {

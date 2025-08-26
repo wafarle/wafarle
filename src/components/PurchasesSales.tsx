@@ -41,6 +41,7 @@ const PurchasesSales: React.FC = () => {
     service_name: '',
     account_details: '',
     purchase_price: 0,
+    sale_price_per_user: 0,
     purchase_date: new Date().toISOString().split('T')[0],
     max_users: 1,
     notes: ''

@@ -100,6 +100,7 @@ export interface Purchase {
   current_users: number;
   status: 'active' | 'full' | 'expired' | 'cancelled';
   notes: string;
+  sale_price_per_user: number;
   created_at: string;
   updated_at: string;
   product?: Product;

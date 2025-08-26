@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package } from 'lucide-react';
-import { useSubscriptions, useCustomers, useProducts, usePurchases } from '../hooks/useSupabase';
+import { useSubscriptions, useCustomers, useProducts, usePurchases, useInvoices } from '../hooks/useSupabase';
 import { supabase } from '../lib/supabase';
 import { Subscription } from '../types';
 
@@ -9,10 +9,12 @@ const Subscriptions: React.FC = () => {
   const { customers } = useCustomers();
   const { products, fetchProducts } = useProducts();
   const { purchases, refetch: refetchPurchases } = usePurchases();
+  const { addInvoice } = useInvoices();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
   const [formData, setFormData] = useState({
     customer_id: '',
     product_id: '',
@@ -123,6 +125,22 @@ const Subscriptions: React.FC = () => {
       result = await updateSubscription(editingSubscription.id, subscriptionData);
     } else {
       result = await addSubscription(subscriptionData);
+      
+      // إنشاء فاتورة تلقائياً إذا كان الخيار مفعل
+      if (result.success && autoGenerateInvoice && result.data) {
+        const invoiceData = {
+          customer_id: formData.customer_id,
+          total_amount: finalPrice,
+          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 يوم من الآن
+          invoice_items: [{
+            subscription_id: result.data.id,
+            amount: finalPrice,
+            description: `${selectedProduct.name} - ${formData.duration_months} شهر`
+          }]
+        };
+        
+        await addInvoice(invoiceData);
+      }
     }
 
     if (result.success) {
@@ -550,12 +568,33 @@ const Subscriptions: React.FC = () => {
                 </div>
               </div>
 
+              {/* خيار إنشاء فاتورة تلقائياً */}
+              {!editingSubscription && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="auto_generate_invoice"
+                      checked={autoGenerateInvoice}
+                      onChange={(e) => setAutoGenerateInvoice(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="auto_generate_invoice" className="mr-3 text-sm font-medium text-blue-900">
+                      إنشاء فاتورة تلقائياً
+                    </label>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2 mr-7">
+                    سيتم إنشاء فاتورة تلقائياً بتاريخ استحقاق 30 يوم من اليوم
+                  </p>
+                </div>
+              )}
               <div className="flex justify-end space-x-3 space-x-reverse pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddModal(false);
                     setEditingSubscription(null);
+                    setAutoGenerateInvoice(true);
                     setFormData({
                       customer_id: '',
                       product_id: '',

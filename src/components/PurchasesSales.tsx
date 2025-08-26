@@ -85,11 +85,17 @@ const PurchasesSales: React.FC = () => {
   const handlePurchaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Convert empty product_id to null to avoid UUID validation error
+    const formDataToSubmit = {
+      ...purchaseFormData,
+      product_id: purchaseFormData.product_id === '' ? null : purchaseFormData.product_id
+    };
+    
     let result;
     if (editingPurchase) {
-      result = await updatePurchase(editingPurchase.id, purchaseFormData);
+      result = await updatePurchase(editingPurchase.id, formDataToSubmit);
     } else {
-      result = await addPurchase(purchaseFormData);
+      result = await addPurchase(formDataToSubmit);
     }
 
     if (result.success) {

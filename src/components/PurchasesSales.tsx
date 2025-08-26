@@ -26,6 +26,7 @@ const PurchasesSales: React.FC = () => {
   const { sales, loading: salesLoading, error: salesError, addSale, updateSale, deleteSale } = useSales();
   const { customers } = useCustomers();
   const { products } = useProducts();
+  const { invoices } = useInvoices();
   
   const [activeTab, setActiveTab] = useState<'purchases' | 'sales'>('purchases');
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,14 +77,47 @@ const PurchasesSales: React.FC = () => {
   // Available purchases for sale (not full)
   const availablePurchases = purchases.filter(p => p.status === 'active' && p.current_users < p.max_users);
 
-  // Statistics
+  // Statistics - حساب المبيعات من الفواتير المدفوعة
   const totalPurchases = purchases.length;
-  const totalSales = sales.filter(s => s.status === 'active').length;
-  const totalPurchasesCost = purchases.reduce((sum, p) => sum + Number(p.purchase_price), 0);
-  const totalSalesRevenue = sales.filter(s => s.status === 'active').reduce((sum, s) => sum + Number(s.sale_price), 0);
   
-  // حساب التكلفة الفعلية للمبيعات فقط (وليس كل المشتريات)
-  const actualSalesCost = sales.filter(s => s.status === 'active').reduce((sum, s) => {
+  // حساب المبيعات من الفواتير المدفوعة
+  const paidInvoices = invoices.filter(inv => inv.status === 'paid');
+  let totalSalesFromInvoices = 0;
+  let totalRevenueFromInvoices = 0;
+  let totalCostFromInvoices = 0;
+  
+  paidInvoices.forEach(invoice => {
+    const revenue = Number(invoice.total_amount || invoice.amount);
+    totalRevenueFromInvoices += revenue;
+    
+    // حساب عدد المبيعات من invoice_items أو subscription واحد
+    if (invoice.invoice_items && invoice.invoice_items.length > 0) {
+      totalSalesFromInvoices += invoice.invoice_items.length;
+      
+      // حساب التكلفة من المشتريات المرتبطة
+      invoice.invoice_items.forEach(item => {
+        const subscription = item.subscription;
+        if (subscription?.purchase) {
+          const costPerUser = Number(subscription.purchase.purchase_price) / subscription.purchase.max_users;
+          totalCostFromInvoices += costPerUser;
+        }
+      });
+    } else if (invoice.subscription) {
+      totalSalesFromInvoices += 1;
+      
+      // حساب التكلفة من المشتريات المرتبطة
+      if (invoice.subscription.purchase) {
+        const costPerUser = Number(invoice.subscription.purchase.purchase_price) / invoice.subscription.purchase.max_users;
+        totalCostFromInvoices += costPerUser;
+      }
+    }
+  });
+  
+  // إضافة المبيعات المباشرة (من جدول sales)
+  const directSales = sales.filter(s => s.status === 'active');
+  const totalDirectSales = directSales.length;
+  const totalDirectRevenue = directSales.reduce((sum, s) => sum + Number(s.sale_price), 0);
+  const totalDirectCost = directSales.reduce((sum, s) => {
     const purchase = purchases.find(p => p.id === s.purchase_id);
     if (purchase) {
       const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
@@ -91,6 +125,12 @@ const PurchasesSales: React.FC = () => {
     }
     return sum;
   }, 0);
+  
+  // الإجماليات
+  const totalSales = totalSalesFromInvoices + totalDirectSales;
+  const totalPurchasesCost = purchases.reduce((sum, p) => sum + Number(p.purchase_price), 0);
+  const totalSalesRevenue = totalRevenueFromInvoices + totalDirectRevenue;
+  const actualSalesCost = totalCostFromInvoices + totalDirectCost;
   
   const totalProfit = totalSalesRevenue - actualSalesCost;
 
@@ -298,9 +338,11 @@ const PurchasesSales: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">المبيعات النشطة</p>
+              <p className="text-sm font-medium text-gray-600">إجمالي المبيعات</p>
               <p className="text-xl font-bold text-gray-900">{totalSales}</p>
-              <p className="text-xs text-green-600">من أصل {sales.length}</p>
+              <p className="text-xs text-green-600">
+                {totalSalesFromInvoices} من الفواتير + {totalDirectSales} مباشرة
+              </p>
             </div>
           </div>
         </div>
@@ -312,6 +354,9 @@ const PurchasesSales: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">تكلفة المبيعات</p>
               <p className="text-lg font-bold text-gray-900">ر.س {actualSalesCost.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">
+                {totalCostFromInvoices.toFixed(2)} فواتير + {totalDirectCost.toFixed(2)} مباشرة
+              </p>
             </div>
           </div>
         </div>
@@ -323,6 +368,9 @@ const PurchasesSales: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">إيرادات المبيعات</p>
               <p className="text-lg font-bold text-gray-900">ر.س {totalSalesRevenue.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">
+                {totalRevenueFromInvoices.toFixed(2)} فواتير + {totalDirectRevenue.toFixed(2)} مباشرة
+              </p>
             </div>
           </div>
         </div>
@@ -362,7 +410,7 @@ const PurchasesSales: React.FC = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            المبيعات ({sales.length})
+            المبيعات المباشرة ({sales.length})
           </button>
         </nav>
       </div>

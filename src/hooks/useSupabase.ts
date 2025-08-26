@@ -354,9 +354,16 @@ export const useInvoices = () => {
         .select(`
           *,
           customer:customers(*),
-          subscription:subscriptions(*,
+          subscription:subscriptions!left(*,
             pricing_tier:pricing_tiers(*,
               product:products(*)
+            )
+          ),
+          invoice_items!left(*,
+            subscription:subscriptions(*,
+              pricing_tier:pricing_tiers(*,
+                product:products(*)
+              )
             )
           )
         `)
@@ -372,19 +379,30 @@ export const useInvoices = () => {
   };
 
   const addInvoice = async (invoice: {
-    subscription_id: string;
     customer_id: string;
-    amount: number;
+    total_amount: number;
     due_date: string;
+    invoice_items: Array<{
+      subscription_id: string;
+      amount: number;
+      description: string;
+    }>;
   }) => {
     try {
+      // Create the main invoice first
       const { data, error } = await supabase
         .from('invoices')
-        .insert([invoice])
+        .insert([{
+          customer_id: invoice.customer_id,
+          amount: invoice.total_amount, // Keep for backward compatibility
+          total_amount: invoice.total_amount,
+          due_date: invoice.due_date,
+          subscription_id: invoice.invoice_items[0]?.subscription_id || null // For backward compatibility
+        }])
         .select(`
           *,
           customer:customers(*),
-          subscription:subscriptions(*,
+          subscription:subscriptions!left(*,
             pricing_tier:pricing_tiers(*,
               product:products(*)
             )
@@ -393,8 +411,35 @@ export const useInvoices = () => {
         .single();
 
       if (error) throw error;
+
+      // Create invoice items
+      const invoiceItems = invoice.invoice_items.map(item => ({
+        ...item,
+        invoice_id: data.id
+      }));
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(invoiceItems)
+        .select(`
+          *,
+          subscription:subscriptions(*,
+            pricing_tier:pricing_tiers(*,
+              product:products(*)
+            )
+          )
+        `);
+
+      if (itemsError) throw itemsError;
+
+      // Add invoice items to the response
+      const invoiceWithItems = {
+        ...data,
+        invoice_items: itemsData
+      };
+
       setInvoices(prev => [data, ...prev]);
-      return { success: true, data };
+      return { success: true, data: invoiceWithItems };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في إضافة الفاتورة';
       setError(message);

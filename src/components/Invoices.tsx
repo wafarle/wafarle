@@ -15,7 +15,7 @@ const Invoices: React.FC = () => {
   const [formData, setFormData] = useState({
     customer_id: '',
     selected_subscriptions: [] as string[],
-    amount: 0,
+    total_amount: 0,
     due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days from now
   });
 
@@ -46,7 +46,7 @@ const Invoices: React.FC = () => {
   // Update amount when subscriptions change
   React.useEffect(() => {
     const totalAmount = calculateTotalAmount();
-    setFormData(prev => ({ ...prev, amount: totalAmount }));
+    setFormData(prev => ({ ...prev, total_amount: totalAmount }));
   }, [formData.selected_subscriptions, subscriptions]);
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -65,47 +65,48 @@ const Invoices: React.FC = () => {
       return;
     }
 
-    // Create invoices for all selected subscriptions
-    const results = [];
-    
-    for (const subscriptionId of formData.selected_subscriptions) {
+    // Prepare invoice items
+    const invoiceItems = formData.selected_subscriptions.map(subscriptionId => {
       const subscription = subscriptions.find(s => s.id === subscriptionId);
-      const subscriptionAmount = subscription?.final_price || subscription?.pricing_tier?.price || 0;
+      const amount = subscription?.final_price || subscription?.pricing_tier?.price || 0;
+      const productName = subscription?.pricing_tier?.product?.name || 'منتج غير محدد';
       
-      const invoiceData = {
+      return {
         subscription_id: subscriptionId,
-        customer_id: formData.customer_id,
-        amount: Number(subscriptionAmount),
-        due_date: formData.due_date
+        amount: Number(amount),
+        description: `${productName} - ${subscription?.pricing_tier?.name || ''}`
       };
+    });
 
-      let result;
-      if (editingInvoice && formData.selected_subscriptions.length === 1) {
-        // Only update if editing and single subscription
-        result = await updateInvoice(editingInvoice.id, invoiceData);
-      } else {
-        // Create new invoice for each subscription
-        result = await addInvoice(invoiceData);
-      }
-      
-      results.push(result);
+    const invoiceData = {
+      customer_id: formData.customer_id,
+      total_amount: formData.total_amount,
+      due_date: formData.due_date,
+      invoice_items: invoiceItems
+    };
+
+    let result;
+    if (editingInvoice) {
+      // For editing, we'll update the main invoice and recreate items
+      result = await updateInvoice(editingInvoice.id, {
+        amount: formData.total_amount,
+        total_amount: formData.total_amount,
+        due_date: formData.due_date
+      });
+    } else {
+      // Create new invoice with items
+      result = await addInvoice(invoiceData);
     }
-
-    // Check if all invoices were created successfully
-    const allSuccessful = results.every(result => result.success);
     
-    if (allSuccessful) {
+    if (result.success) {
       setShowAddModal(false);
       setEditingInvoice(null);
       setFormData({
         customer_id: '',
         selected_subscriptions: [],
-        amount: 0,
+        total_amount: 0,
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       });
-    } else {
-      const failedCount = results.filter(result => !result.success).length;
-      alert(`فشل في إنشاء ${failedCount} من ${results.length} فواتير`);
     }
   };
 
@@ -161,7 +162,7 @@ ${paypalLink}
     setFormData({
       customer_id: invoice.customer_id,
       selected_subscriptions: [invoice.subscription_id],
-      amount: Number(invoice.amount),
+      total_amount: Number(invoice.total_amount || invoice.amount),
       due_date: invoice.due_date
     });
     setShowAddModal(true);
@@ -327,7 +328,7 @@ ${paypalLink}
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم الفاتورة</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العميل</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المنتج</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المنتجات</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المبلغ</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الإصدار</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الاستحقاق</th>
@@ -345,12 +346,27 @@ ${paypalLink}
                     {invoice.customer?.name || 'غير محدد'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {invoice.subscription?.pricing_tier?.product?.name || 'غير محدد'}
+                    {invoice.invoice_items && invoice.invoice_items.length > 0 ? (
+                      <div className="space-y-1">
+                        {invoice.invoice_items.map((item, index) => (
+                          <div key={index} className="text-xs">
+                            {item.subscription?.pricing_tier?.product?.name || 'غير محدد'}
+                          </div>
+                        ))}
+                        {invoice.invoice_items.length > 1 && (
+                          <div className="text-xs text-gray-500 font-medium">
+                            ({invoice.invoice_items.length} منتجات)
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      invoice.subscription?.pricing_tier?.product?.name || 'غير محدد'
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm font-medium text-gray-900">
                       <span className="text-green-600 font-medium">ر.س</span>
-                      <span className="mr-1">{Number(invoice.amount).toFixed(2)}</span>
+                      <span className="mr-1">{Number(invoice.total_amount || invoice.amount).toFixed(2)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -534,24 +550,25 @@ ${paypalLink}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    المبلغ الإجمالي (ريال) - {formData.selected_subscriptions.length} اشتراك
+                    المبلغ الإجمالي (ريال)
                   </label>
                   <input
                     type="number"
                     required
                     min="0"
                     step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                    value={formData.total_amount}
+                    onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
                     placeholder="0.00"
                     readOnly={formData.selected_subscriptions.length > 0}
                   />
-                  {formData.selected_subscriptions.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      سيتم إنشاء فاتورة منفصلة لكل اشتراك بسعره الخاص
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.selected_subscriptions.length > 0 
+                      ? `فاتورة واحدة تحتوي على ${formData.selected_subscriptions.length} اشتراك`
+                      : 'اختر الاشتراكات لحساب المبلغ تلقائياً'
+                    }
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الاستحقاق</label>
@@ -574,7 +591,7 @@ ${paypalLink}
                     setFormData({
                       customer_id: '',
                       selected_subscriptions: [],
-                      amount: 0,
+                      total_amount: 0,
                       due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
                     });
                   }}
@@ -587,9 +604,9 @@ ${paypalLink}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   {editingInvoice ? 'تحديث الفاتورة' : 
-                   formData.selected_subscriptions.length > 1 ? 
-                   `إنشاء ${formData.selected_subscriptions.length} فواتير` : 
-                   'إنشاء الفاتورة'}
+                   formData.selected_subscriptions.length > 0 ? 
+                   `إنشاء فاتورة (${formData.selected_subscriptions.length} اشتراك)` : 
+                   'إنشاء فاتورة'}
                 </button>
               </div>
             </form>

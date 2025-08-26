@@ -60,6 +60,7 @@ export interface Invoice {
   subscription_id: string;
   customer_id: string;
   amount: number;
+  total_amount?: number;
   status: 'paid' | 'pending' | 'overdue';
   issue_date: string;
   due_date: string;
@@ -68,6 +69,17 @@ export interface Invoice {
   updated_at: string;
   subscription?: Subscription;
   customer?: Customer;
+  invoice_items?: InvoiceItem[];
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  subscription_id: string;
+  amount: number;
+  description: string;
+  created_at: string;
+  subscription?: Subscription;
 }
 
 export interface DashboardStats {

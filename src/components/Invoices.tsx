@@ -1,60 +1,76 @@
 import React, { useState } from 'react';
-import { Plus, Search, Download, Eye, DollarSign, Calendar, AlertTriangle } from 'lucide-react';
-
-interface Invoice {
-  id: number;
-  customer: string;
-  subscription: string;
-  amount: number;
-  status: 'paid' | 'pending' | 'overdue';
-  issueDate: string;
-  dueDate: string;
-  paidDate?: string;
-}
+import { Plus, Search, Download, Eye, DollarSign, Calendar, AlertTriangle, Loader2, Edit, Trash2 } from 'lucide-react';
+import { useInvoices, useSubscriptions, useCustomers } from '../hooks/useSupabase';
+import { Invoice } from '../types';
 
 const Invoices: React.FC = () => {
+  const { invoices, loading, error, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
+  const { subscriptions } = useSubscriptions();
+  const { customers } = useCustomers();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-
-  // Mock data
-  const invoices: Invoice[] = [
-    {
-      id: 1001,
-      customer: 'أحمد محمد العلي',
-      subscription: 'خطة أساسية - 3 شهور',
-      amount: 600,
-      status: 'paid',
-      issueDate: '2024-01-15',
-      dueDate: '2024-02-15',
-      paidDate: '2024-01-20'
-    },
-    {
-      id: 1002,
-      customer: 'فاطمة حسن',
-      subscription: 'خطة متقدمة - 6 شهور',
-      amount: 2400,
-      status: 'pending',
-      issueDate: '2024-01-10',
-      dueDate: '2024-02-10'
-    },
-    {
-      id: 1003,
-      customer: 'محمد سالم',
-      subscription: 'خطة مميزة - 12 شهر',
-      amount: 7200,
-      status: 'overdue',
-      issueDate: '2023-12-01',
-      dueDate: '2024-01-01'
-    }
-  ];
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [formData, setFormData] = useState({
+    subscription_id: '',
+    customer_id: '',
+    amount: 0,
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days from now
+  });
 
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.subscription.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const customerName = invoice.customer?.name || '';
+    const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          invoice.id.toString().includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    let result;
+    if (editingInvoice) {
+      result = await updateInvoice(editingInvoice.id, formData);
+    } else {
+      result = await addInvoice(formData);
+    }
+
+    if (result.success) {
+      setShowAddModal(false);
+      setEditingInvoice(null);
+      setFormData({
+        subscription_id: '',
+        customer_id: '',
+        amount: 0,
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const handleEdit = (invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setFormData({
+      subscription_id: invoice.subscription_id,
+      customer_id: invoice.customer_id,
+      amount: Number(invoice.amount),
+      due_date: invoice.due_date
+    });
+    setShowAddModal(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+      await deleteInvoice(id);
+    }
+  };
+
+  const handleMarkAsPaid = async (invoice: Invoice) => {
+    await updateInvoice(invoice.id, {
+      status: 'paid',
+      paid_date: new Date().toISOString().split('T')[0]
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -91,6 +107,23 @@ const Invoices: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <span className="mr-2 text-gray-600">جاري تحميل الفواتير...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header and Filters */}
@@ -117,7 +150,10 @@ const Invoices: React.FC = () => {
             <option value="overdue">متأخر</option>
           </select>
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+        >
           <Plus className="w-4 h-4 ml-2" />
           إنشاء فاتورة جديدة
         </button>
@@ -174,7 +210,7 @@ const Invoices: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم الفاتورة</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العميل</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الاشتراك</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المنتج</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المبلغ</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الإصدار</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الاستحقاق</th>
@@ -186,13 +222,13 @@ const Invoices: React.FC = () => {
               {filteredInvoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    #{invoice.id}
+                    #{invoice.id.slice(-8)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {invoice.customer}
+                    {invoice.customer?.name || 'غير محدد'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {invoice.subscription}
+                    {invoice.subscription?.pricing_tier?.product?.name || 'غير محدد'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm font-medium text-gray-900">
@@ -201,10 +237,10 @@ const Invoices: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {invoice.issueDate}
+                    {new Date(invoice.issue_date).toLocaleDateString('ar-SA')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {invoice.dueDate}
+                    {new Date(invoice.due_date).toLocaleDateString('ar-SA')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -222,6 +258,26 @@ const Invoices: React.FC = () => {
                       <button className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded">
                         <Download className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => handleEdit(invoice)}
+                        className="text-gray-600 hover:text-gray-900 p-1 hover:bg-gray-50 rounded"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(invoice.id)}
+                        className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      {invoice.status === 'pending' && (
+                        <button
+                          onClick={() => handleMarkAsPaid(invoice)}
+                          className="text-green-600 hover:text-green-900 px-2 py-1 text-xs bg-green-50 hover:bg-green-100 rounded"
+                        >
+                          تم الدفع
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -230,6 +286,108 @@ const Invoices: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Add/Edit Invoice Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              {editingInvoice ? 'تعديل الفاتورة' : 'إنشاء فاتورة جديدة'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
+                <select
+                  required
+                  value={formData.customer_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">اختر العميل</option>
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.id}>{customer.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الاشتراك</label>
+                <select
+                  required
+                  value={formData.subscription_id}
+                  onChange={(e) => {
+                    const subscription = subscriptions.find(s => s.id === e.target.value);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      subscription_id: e.target.value,
+                      amount: subscription?.pricing_tier?.price || 0
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">اختر الاشتراك</option>
+                  {subscriptions.filter(s => s.status === 'active').map(subscription => (
+                    <option key={subscription.id} value={subscription.id}>
+                      {subscription.customer?.name} - {subscription.pricing_tier?.product?.name} ({subscription.pricing_tier?.name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ريال)</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.amount}
+                    onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الاستحقاق</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.due_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 space-x-reverse pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setEditingInvoice(null);
+                    setFormData({
+                      subscription_id: '',
+                      customer_id: '',
+                      amount: 0,
+                      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                    });
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {editingInvoice ? 'تحديث الفاتورة' : 'إنشاء الفاتورة'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

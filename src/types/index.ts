@@ -8,19 +8,46 @@ export interface Customer {
   updated_at: string;
 }
 
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  features: string[];
+  icon: string;
+  color: string;
+  is_popular: boolean;
+  pricing_tiers: PricingTier[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PricingTier {
+  id: string;
+  product_id: string;
+  name: string;
+  duration_months: number;
+  price: number;
+  original_price?: number;
+  discount_percentage?: number;
+  features: string[];
+  is_recommended: boolean;
+  product?: Product;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Subscription {
   id: string;
   customer_id: string;
-  plan_name: string;
-  duration_months: number;
-  monthly_price: number;
-  total_price: number;
+  pricing_tier_id: string;
   start_date: string;
   end_date: string;
   status: 'active' | 'expired' | 'cancelled';
   created_at: string;
   updated_at: string;
   customer?: Customer;
+  pricing_tier?: PricingTier;
 }
 
 export interface Invoice {
@@ -43,29 +70,4 @@ export interface DashboardStats {
   active_subscriptions: number;
   total_revenue: number;
   pending_invoices: number;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  features: string[];
-  pricing_tiers: PricingTier[];
-  is_popular?: boolean;
-  icon?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PricingTier {
-  id: string;
-  product_id: string;
-  name: string;
-  duration_months: number;
-  price: number;
-  original_price?: number;
-  discount_percentage?: number;
-  features: string[];
-  is_recommended?: boolean;
 }

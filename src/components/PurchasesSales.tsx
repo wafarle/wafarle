@@ -88,6 +88,8 @@ const PurchasesSales: React.FC = () => {
   
   paidInvoices.forEach(invoice => {
     const revenue = Number(invoice.total_amount || invoice.amount);
+    if (isNaN(revenue) || revenue <= 0) return; // تجاهل الفواتير بدون مبلغ صحيح
+    
     totalRevenueFromInvoices += revenue;
     
     // حساب عدد المبيعات من invoice_items أو subscription واحد
@@ -97,7 +99,7 @@ const PurchasesSales: React.FC = () => {
       // حساب التكلفة من المشتريات المرتبطة
       invoice.invoice_items.forEach(item => {
         const subscription = item.subscription;
-        if (subscription?.purchase && subscription.purchase.purchase_price && subscription.purchase.max_users) {
+        if (subscription?.purchase && subscription.purchase.purchase_price && subscription.purchase.max_users && subscription.purchase.max_users > 0) {
           const costPerUser = Number(subscription.purchase.purchase_price) / subscription.purchase.max_users;
           if (!isNaN(costPerUser) && costPerUser > 0) {
             totalCostFromInvoices += costPerUser;
@@ -111,21 +113,32 @@ const PurchasesSales: React.FC = () => {
       if (invoice.subscription.purchase && invoice.subscription.purchase.purchase_price && invoice.subscription.purchase.max_users) {
         const costPerUser = Number(invoice.subscription.purchase.purchase_price) / invoice.subscription.purchase.max_users;
         if (!isNaN(costPerUser) && costPerUser > 0) {
-          totalCostFromInvoices += costPerUser;
+          if (!isNaN(costPerUser) && costPerUser > 0) {
+            totalCostFromInvoices += costPerUser;
+          }
         }
       }
     }
   });
   
   // إضافة المبيعات المباشرة (من جدول sales)
-  const directSales = sales.filter(s => s.status === 'active');
+      if (invoice.subscription.purchase && invoice.subscription.purchase.purchase_price && invoice.subscription.purchase.max_users && invoice.subscription.purchase.max_users > 0) {
   const totalDirectSales = directSales.length;
   const totalDirectRevenue = directSales.reduce((sum, s) => sum + Number(s.sale_price), 0);
   const totalDirectCost = directSales.reduce((sum, s) => {
-    if (s.purchase && s.purchase.purchase_price && s.purchase.max_users && s.purchase.max_users > 0) {
+  const totalDirectRevenue = directSales.reduce((sum, s) => {
+    const salePrice = Number(s.sale_price);
+    return isNaN(salePrice) || salePrice <= 0 ? sum : sum + salePrice;
+  }, 0);
+  
       const costPerUser = Number(s.purchase.purchase_price) / s.purchase.max_users;
+    const saleRevenue = Number(s.sale_price);
+    if (isNaN(saleRevenue) || saleRevenue <= 0) return sum; // تجاهل المبيعات بدون مبلغ صحيح
+    
       if (!isNaN(costPerUser) && costPerUser > 0) {
-        return sum + costPerUser;
+        if (!isNaN(costPerUser) && costPerUser > 0) {
+          totalCostFromInvoices += costPerUser;
+        }
       }
     }
     return sum;

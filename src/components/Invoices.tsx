@@ -23,10 +23,18 @@ const Invoices: React.FC = () => {
   const customerSubscriptions = subscriptions.filter(sub => 
     sub.customer_id === formData.customer_id && 
     sub.status === 'active' &&
-    !invoices.some(invoice => 
-      invoice.subscription_id === sub.id && 
-      (!editingInvoice || invoice.id !== editingInvoice.id)
-    )
+    !invoices.some(invoice => {
+      // Check if subscription is in main invoice (old system)
+      const isInMainInvoice = invoice.subscription_id === sub.id && 
+        (!editingInvoice || invoice.id !== editingInvoice.id);
+      
+      // Check if subscription is in invoice items (new system)
+      const isInInvoiceItems = invoice.invoice_items?.some(item => 
+        item.subscription_id === sub.id
+      ) && (!editingInvoice || invoice.id !== editingInvoice.id);
+      
+      return isInMainInvoice || isInInvoiceItems;
+    })
   );
 
   // Get all customer subscriptions (including those with invoices) for editing
@@ -482,11 +490,19 @@ ${paypalLink}
                   </label>
                   <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
                     {(editingInvoice ? allCustomerSubscriptions : customerSubscriptions).map((subscription) => {
-                      // التحقق من وجود فاتورة لهذا الاشتراك
-                      const hasInvoice = invoices.some(invoice => 
-                        invoice.subscription_id === subscription.id && 
-                        (!editingInvoice || invoice.id !== editingInvoice.id)
-                      );
+                      // التحقق من وجود فاتورة لهذا الاشتراك (في النظام القديم أو الجديد)
+                      const hasInvoice = invoices.some(invoice => {
+                        // Check main invoice subscription (old system)
+                        const isInMainInvoice = invoice.subscription_id === subscription.id && 
+                          (!editingInvoice || invoice.id !== editingInvoice.id);
+                        
+                        // Check invoice items (new system)
+                        const isInInvoiceItems = invoice.invoice_items?.some(item => 
+                          item.subscription_id === subscription.id
+                        ) && (!editingInvoice || invoice.id !== editingInvoice.id);
+                        
+                        return isInMainInvoice || isInInvoiceItems;
+                      });
                       
                       return (
                       <div key={subscription.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">

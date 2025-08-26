@@ -794,11 +794,19 @@ export const useProfitLoss = () => {
     try {
       setLoading(true);
       
-      // جلب الفواتير المدفوعة
+      // جلب الفواتير المدفوعة مع تفاصيل الاشتراكات والمشتريات
       const { data: paidInvoices, error: invoicesError } = await supabase
         .from('invoices')
         .select(`
           *,
+          invoice_items(*,
+            subscription:subscriptions(*,
+              purchase:purchases(*),
+              pricing_tier:pricing_tiers(*,
+                product:products(*)
+              )
+            )
+          ),
           subscription:subscriptions(*,
             purchase:purchases(*),
             pricing_tier:pricing_tiers(*,
@@ -817,14 +825,24 @@ export const useProfitLoss = () => {
 
       if (purchasesError) throw purchasesError;
 
+      // جلب جميع المبيعات النشطة
+      const { data: activeSales, error: salesError } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          purchase:purchases(*)
+        `)
+        .eq('status', 'active');
+
+      if (salesError) throw salesError;
       let totalRevenue = 0;
       let totalCosts = 0;
       const monthlyData: { [key: string]: { revenue: number; costs: number } } = {};
       const productData: { [key: string]: { revenue: number; costs: number; sales: number; name: string } } = {};
 
-      // حساب الإيرادات من الفواتير المدفوعة
+      // حساب الإيرادات من الفواتير المدفوعة والتكاليف المرتبطة
       paidInvoices?.forEach(invoice => {
-        const revenue = Number(invoice.amount);
+        const revenue = Number(invoice.total_amount || invoice.amount);
         totalRevenue += revenue;
 
         // تجميع البيانات حسب الشهر
@@ -838,27 +856,86 @@ export const useProfitLoss = () => {
         }
         monthlyData[month].revenue += revenue;
 
-        // تجميع البيانات حسب المنتج
-        const productName = invoice.subscription?.pricing_tier?.product?.name || 'غير محدد';
-        if (!productData[productName]) {
-          productData[productName] = { revenue: 0, costs: 0, sales: 0, name: productName };
-        }
-        productData[productName].revenue += revenue;
-        productData[productName].sales += 1;
+        // معالجة الفواتير الجديدة (مع invoice_items)
+        if (invoice.invoice_items && invoice.invoice_items.length > 0) {
+          invoice.invoice_items.forEach(item => {
+            const subscription = item.subscription;
+            const productName = subscription?.pricing_tier?.product?.name || 'غير محدد';
+            
+            if (!productData[productName]) {
+              productData[productName] = { revenue: 0, costs: 0, sales: 0, name: productName };
+            }
+            productData[productName].revenue += Number(item.amount);
+            productData[productName].sales += 1;
 
-        // حساب التكلفة المرتبطة بهذه الفاتورة
-        if (invoice.subscription?.purchase_id) {
-          const purchase = purchases?.find(p => p.id === invoice.subscription.purchase_id);
-          if (purchase) {
-            const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
-            const cost = costPerUser; // تكلفة مستخدم واحد
-            totalCosts += cost;
-            monthlyData[month].costs += cost;
-            productData[productName].costs += cost;
+            // حساب التكلفة
+            if (subscription?.purchase_id) {
+              const purchase = purchases?.find(p => p.id === subscription.purchase_id);
+              if (purchase) {
+                const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+                totalCosts += costPerUser;
+                monthlyData[month].costs += costPerUser;
+                productData[productName].costs += costPerUser;
+              }
+            }
+          });
+        } 
+        // معالجة الفواتير القديمة (بدون invoice_items)
+        else if (invoice.subscription) {
+          const productName = invoice.subscription?.pricing_tier?.product?.name || 'غير محدد';
+          if (!productData[productName]) {
+            productData[productName] = { revenue: 0, costs: 0, sales: 0, name: productName };
+          }
+          productData[productName].revenue += revenue;
+          productData[productName].sales += 1;
+
+          // حساب التكلفة
+          if (invoice.subscription?.purchase_id) {
+            const purchase = purchases?.find(p => p.id === invoice.subscription.purchase_id);
+            if (purchase) {
+              const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+              totalCosts += costPerUser;
+              monthlyData[month].costs += costPerUser;
+              productData[productName].costs += costPerUser;
+            }
           }
         }
       });
 
+      // إضافة إيرادات وتكاليف المبيعات المباشرة
+      activeSales?.forEach(sale => {
+        const saleRevenue = Number(sale.sale_price);
+        const purchase = sale.purchase;
+        
+        if (purchase) {
+          const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+          const serviceName = purchase.service_name || 'خدمة غير محددة';
+          
+          // إضافة للإيرادات والتكاليف الإجمالية
+          totalRevenue += saleRevenue;
+          totalCosts += costPerUser;
+          
+          // تجميع البيانات حسب الشهر
+          const month = new Date(sale.sale_date).toLocaleDateString('ar-SA', { 
+            year: 'numeric', 
+            month: 'long' 
+          });
+          
+          if (!monthlyData[month]) {
+            monthlyData[month] = { revenue: 0, costs: 0 };
+          }
+          monthlyData[month].revenue += saleRevenue;
+          monthlyData[month].costs += costPerUser;
+          
+          // تجميع البيانات حسب المنتج/الخدمة
+          if (!productData[serviceName]) {
+            productData[serviceName] = { revenue: 0, costs: 0, sales: 0, name: serviceName };
+          }
+          productData[serviceName].revenue += saleRevenue;
+          productData[serviceName].costs += costPerUser;
+          productData[serviceName].sales += 1;
+        }
+      });
       // تحويل البيانات الشهرية إلى مصفوفة
       const revenueByMonth = Object.entries(monthlyData).map(([month, data]) => ({
         month,

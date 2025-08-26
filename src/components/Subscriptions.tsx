@@ -248,7 +248,7 @@ const Subscriptions: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-900">
                       <span className="text-green-600 font-medium">ر.س</span>
-                      <span className="mr-1">{Number(subscription.pricing_tier?.price || 0).toFixed(2)}</span>
+                      <span className="mr-1">{Number(subscription.final_price || subscription.custom_price || subscription.pricing_tier?.price || 0).toFixed(2)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

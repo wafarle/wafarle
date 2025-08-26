@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Customer, Product, PricingTier, Subscription, Invoice } from '../types';
+import { Customer, Product, PricingTier, Subscription, Invoice, Purchase, Sale } from '../types';
 
 // Hook للعملاء
 export const useCustomers = () => {
@@ -487,5 +487,207 @@ export const useDashboardStats = () => {
     loading,
     error,
     refetch: fetchStats
+  };
+};
+
+// Hook للمشتريات
+export const usePurchases = () => {
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPurchases = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('purchases')
+        .select(`
+          *,
+          sales (
+            *,
+            customer:customers(*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPurchases(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل المشتريات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addPurchase = async (purchase: Omit<Purchase, 'id' | 'created_at' | 'updated_at' | 'current_users' | 'sales'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('purchases')
+        .insert([purchase])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setPurchases(prev => [{ ...data, sales: [] }, ...prev]);
+      return { success: true, data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في إضافة المشتريات';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const updatePurchase = async (id: string, updates: Partial<Purchase>) => {
+    try {
+      const { data, error } = await supabase
+        .from('purchases')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setPurchases(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+      return { success: true, data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في تحديث المشتريات';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const deletePurchase = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('purchases')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setPurchases(prev => prev.filter(p => p.id !== id));
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في حذف المشتريات';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  useEffect(() => {
+    fetchPurchases();
+  }, []);
+
+  return {
+    purchases,
+    loading,
+    error,
+    addPurchase,
+    updatePurchase,
+    deletePurchase,
+    refetch: fetchPurchases
+  };
+};
+
+// Hook للمبيعات
+export const useSales = () => {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSales = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          purchase:purchases(*),
+          customer:customers(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSales(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل المبيعات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addSale = async (sale: Omit<Sale, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .insert([sale])
+        .select(`
+          *,
+          purchase:purchases(*),
+          customer:customers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      setSales(prev => [data, ...prev]);
+      return { success: true, data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في إضافة المبيعات';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const updateSale = async (id: string, updates: Partial<Sale>) => {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          purchase:purchases(*),
+          customer:customers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      setSales(prev => prev.map(s => s.id === id ? data : s));
+      return { success: true, data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في تحديث المبيعات';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const deleteSale = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setSales(prev => prev.filter(s => s.id !== id));
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في حذف المبيعات';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  useEffect(() => {
+    fetchSales();
+  }, []);
+
+  return {
+    sales,
+    loading,
+    error,
+    addSale,
+    updateSale,
+    deleteSale,
+    refetch: fetchSales
   };
 };

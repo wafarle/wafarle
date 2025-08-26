@@ -7,7 +7,8 @@ import {
   Menu,
   X,
   Building,
-  Package
+  Package,
+  ShoppingBag
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -25,6 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'customers', label: 'العملاء', icon: Users },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCard },
     { id: 'invoices', label: 'الفواتير', icon: FileText },
+    { id: 'purchases-sales', label: 'المشتريات والمبيعات', icon: ShoppingBag },
   ];
 
   return (

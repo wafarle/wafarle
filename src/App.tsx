@@ -5,6 +5,7 @@ import Products from './components/Products';
 import Customers from './components/Customers';
 import Subscriptions from './components/Subscriptions';
 import Invoices from './components/Invoices';
+import PurchasesSales from './components/PurchasesSales';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -21,6 +22,8 @@ function App() {
         return <Subscriptions />;
       case 'invoices':
         return <Invoices />;
+      case 'purchases-sales':
+        return <PurchasesSales />;
       default:
         return <Dashboard />;
     }

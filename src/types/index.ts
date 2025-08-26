@@ -71,3 +71,32 @@ export interface DashboardStats {
   total_revenue: number;
   pending_invoices: number;
 }
+
+export interface Purchase {
+  id: string;
+  service_name: string;
+  account_details: string;
+  purchase_price: number;
+  purchase_date: string;
+  max_users: number;
+  current_users: number;
+  status: 'active' | 'full' | 'expired' | 'cancelled';
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  sales?: Sale[];
+}
+
+export interface Sale {
+  id: string;
+  purchase_id: string;
+  customer_id: string;
+  sale_price: number;
+  sale_date: string;
+  status: 'active' | 'expired' | 'cancelled';
+  access_details: string;
+  created_at: string;
+  updated_at: string;
+  purchase?: Purchase;
+  customer?: Customer;
+}

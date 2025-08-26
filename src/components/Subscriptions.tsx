@@ -33,7 +33,7 @@ const Subscriptions: React.FC = () => {
     const selectedProduct = products.find(p => p.id === formData.product_id);
     if (!selectedProduct) return 0;
     
-    const basePrice = selectedProduct.price || 0;
+    const basePrice = Number(selectedProduct.price) || 0;
     const totalPrice = basePrice * formData.duration_months;
     const discountAmount = (totalPrice * formData.discount_percentage) / 100;
     return totalPrice - discountAmount;
@@ -44,6 +44,23 @@ const Subscriptions: React.FC = () => {
     
     const selectedProduct = products.find(p => p.id === formData.product_id);
     if (!selectedProduct) return;
+    
+    // Find or create pricing tier for this duration
+    let pricingTierId = null;
+    
+    // Check if there's an existing pricing tier for this product and duration
+    const existingTier = selectedProduct.pricing_tiers?.find(
+      tier => tier.duration_months === formData.duration_months
+    );
+    
+    if (existingTier) {
+      pricingTierId = existingTier.id;
+    } else {
+      // For now, we'll use the product_id as pricing_tier_id
+      // In a real app, you'd create a new pricing tier here
+      alert('لا يوجد خطة تسعير لهذه المدة. يرجى إضافة خطة تسعير أولاً.');
+      return;
+    }
 
     const startDate = new Date(formData.start_date);
     const endDate = new Date(startDate);
@@ -51,25 +68,19 @@ const Subscriptions: React.FC = () => {
 
     const finalPrice = formData.custom_price > 0 ? formData.custom_price : calculatePrice();
 
-    // Create a pricing tier for this subscription
-    const pricingTierData = {
-      product_id: formData.product_id,
-      name: `${formData.duration_months} شهر`,
-      duration_months: formData.duration_months,
-      price: finalPrice,
-      discount_percentage: formData.discount_percentage,
-      features: selectedProduct.features || []
-    };
-
-    // For now, we'll use the product price directly in the subscription
     const subscriptionData = {
       customer_id: formData.customer_id,
-      pricing_tier_id: formData.product_id, // We'll use product_id temporarily
+      pricing_tier_id: pricingTierId,
       start_date: formData.start_date,
       end_date: endDate.toISOString().split('T')[0],
-      final_price: finalPrice,
-      discount_percentage: formData.discount_percentage
+      status: 'active'
     };
+
+    // Store custom pricing info separately if needed
+    if (formData.custom_price > 0 || formData.discount_percentage > 0) {
+      // You could store this in a separate custom_pricing table
+      console.log('Custom pricing:', { finalPrice, discount: formData.discount_percentage });
+    }
 
     let result;
     if (editingSubscription) {
@@ -94,14 +105,20 @@ const Subscriptions: React.FC = () => {
 
   const handleEdit = (subscription: Subscription) => {
     setEditingSubscription(subscription);
+    
     const startDate = new Date(subscription.start_date);
     const endDate = new Date(subscription.end_date);
     const durationMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
                           (endDate.getMonth() - startDate.getMonth());
     
+    // Get product_id from pricing_tier
+    const productId = subscription.pricing_tier?.product?.id || 
+                     subscription.pricing_tier?.product_id || 
+                     '';
+    
     setFormData({
       customer_id: subscription.customer_id,
-      product_id: subscription.pricing_tier?.product?.id || subscription.pricing_tier_id,
+      product_id: productId,
       duration_months: durationMonths,
       start_date: subscription.start_date,
       discount_percentage: 0,
@@ -231,7 +248,7 @@ const Subscriptions: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-900">
                       <DollarSign className="w-4 h-4 ml-1" />
-                      {subscription.pricing_tier?.price || 0} ريال
+                      {Number(subscription.pricing_tier?.price || 0).toFixed(2)} ريال
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -310,7 +327,7 @@ const Subscriptions: React.FC = () => {
                   <option value="">اختر المنتج</option>
                   {products.map(product => (
                     <option key={product.id} value={product.id}>
-                      {product.name} - {product.price} ريال/شهر
+                      {product.name} - {Number(product.price || 0).toFixed(2)} ريال/شهر
                     </option>
                   ))}
                 </select>
@@ -386,7 +403,7 @@ const Subscriptions: React.FC = () => {
                   <div className="space-y-1 text-sm text-blue-800">
                     <div className="flex justify-between">
                       <span>السعر الأساسي:</span>
-                      <span>{products.find(p => p.id === formData.product_id)?.price || 0} ريال/شهر</span>
+                      <span>{Number(products.find(p => p.id === formData.product_id)?.price || 0).toFixed(2)} ريال/شهر</span>
                     </div>
                     <div className="flex justify-between">
                       <span>المدة:</span>
@@ -394,12 +411,12 @@ const Subscriptions: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>المجموع قبل الخصم:</span>
-                      <span>{((products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months).toFixed(2)} ريال</span>
+                      <span>{(Number(products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months).toFixed(2)} ريال</span>
                     </div>
                     {formData.discount_percentage > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span>الخصم ({formData.discount_percentage}%):</span>
-                        <span>-{(((products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months * formData.discount_percentage) / 100).toFixed(2)} ريال</span>
+                        <span>-{((Number(products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months * formData.discount_percentage) / 100).toFixed(2)} ريال</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-lg border-t border-blue-200 pt-2">

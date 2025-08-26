@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package } from 'lucide-react';
-import { useSubscriptions, useCustomers, useProducts } from '../hooks/useSupabase';
+import { useSubscriptions, useCustomers, useProducts, usePurchases } from '../hooks/useSupabase';
 import { supabase } from '../lib/supabase';
 import { Subscription } from '../types';
 
@@ -8,6 +8,7 @@ const Subscriptions: React.FC = () => {
   const { subscriptions, loading, error, addSubscription, updateSubscription, deleteSubscription } = useSubscriptions();
   const { customers } = useCustomers();
   const { products } = useProducts();
+  const { purchases } = usePurchases();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -15,6 +16,7 @@ const Subscriptions: React.FC = () => {
   const [formData, setFormData] = useState({
     customer_id: '',
     product_id: '',
+    purchase_id: '',
     duration_months: 1,
     start_date: new Date().toISOString().split('T')[0],
     discount_percentage: 0,
@@ -31,10 +33,22 @@ const Subscriptions: React.FC = () => {
   });
 
   const calculatePrice = () => {
-    const selectedProduct = products.find(p => p.id === formData.product_id);
-    if (!selectedProduct) return 0;
+    let basePrice = 0;
     
-    const basePrice = Number(selectedProduct.price) || 0;
+    if (formData.purchase_id) {
+      // إذا تم اختيار مشتريات محددة
+      const selectedPurchase = purchases.find(p => p.id === formData.purchase_id);
+      if (selectedPurchase) {
+        basePrice = Number(selectedPurchase.purchase_price) / selectedPurchase.max_users;
+      }
+    } else if (formData.product_id) {
+      // إذا تم اختيار منتج فقط
+      const selectedProduct = products.find(p => p.id === formData.product_id);
+      if (selectedProduct) {
+        basePrice = Number(selectedProduct.price) || 0;
+      }
+    }
+    
     const totalPrice = basePrice * formData.duration_months;
     const discountAmount = (totalPrice * formData.discount_percentage) / 100;
     return totalPrice - discountAmount;
@@ -91,6 +105,7 @@ const Subscriptions: React.FC = () => {
     const subscriptionData = {
       customer_id: formData.customer_id,
       pricing_tier_id: pricingTierId,
+      purchase_id: formData.purchase_id || null,
       start_date: formData.start_date,
       end_date: endDate.toISOString().split('T')[0],
       status: 'active',
@@ -112,6 +127,7 @@ const Subscriptions: React.FC = () => {
       setFormData({
         customer_id: '',
         product_id: '',
+        purchase_id: '',
         duration_months: 1,
         start_date: new Date().toISOString().split('T')[0],
         discount_percentage: 0,
@@ -136,6 +152,7 @@ const Subscriptions: React.FC = () => {
     setFormData({
       customer_id: subscription.customer_id,
       product_id: productId,
+      purchase_id: subscription.purchase_id || '',
       duration_months: durationMonths,
       start_date: subscription.start_date,
       discount_percentage: 0,
@@ -338,17 +355,47 @@ const Subscriptions: React.FC = () => {
                 <select
                   required
                   value={formData.product_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, product_id: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, product_id: e.target.value, purchase_id: '' }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">اختر المنتج</option>
                   {products.map(product => (
                     <option key={product.id} value={product.id}>
-                      {product.name} - {Number(product.price || 0).toFixed(2)} ريال/شهر
+                      {product.name} - {Number(product.price || 0).toFixed(2)} ريال/شهر 
+                      ({product.available_slots || 0} متاح)
                     </option>
                   ))}
                 </select>
               </div>
+              
+              {/* Purchase Selection (if product has available purchases) */}
+              {formData.product_id && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    المشتريات المتاحة (اختياري)
+                  </label>
+                  <select
+                    value={formData.purchase_id}
+                    onChange={(e) => setFormData(prev => ({ ...prev, purchase_id: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">استخدام السعر العادي</option>
+                    {purchases
+                      .filter(p => p.product_id === formData.product_id && p.status === 'active' && p.current_users < p.max_users)
+                      .map(purchase => (
+                        <option key={purchase.id} value={purchase.id}>
+                          {purchase.service_name} - {(Number(purchase.purchase_price) / purchase.max_users).toFixed(2)} ريال/مستخدم
+                          ({purchase.max_users - purchase.current_users} متاح)
+                        </option>
+                      ))}
+                  </select>
+                  {formData.purchase_id && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      سيتم خصم مستخدم من المشتريات المحددة
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Duration and Start Date */}
               <div className="grid grid-cols-2 gap-4">
@@ -414,13 +461,19 @@ const Subscriptions: React.FC = () => {
               </div>
 
               {/* Price Calculation Display */}
-              {formData.product_id && (
+              {(formData.product_id || formData.purchase_id) && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="font-medium text-blue-900 mb-2">ملخص التسعير:</h4>
                   <div className="space-y-1 text-sm text-blue-800">
                     <div className="flex justify-between">
                       <span>السعر الأساسي:</span>
-                      <span>{Number(products.find(p => p.id === formData.product_id)?.price || 0).toFixed(2)} ريال/شهر</span>
+                      <span>
+                        {formData.purchase_id 
+                          ? (Number(purchases.find(p => p.id === formData.purchase_id)?.purchase_price || 0) / 
+                             (purchases.find(p => p.id === formData.purchase_id)?.max_users || 1)).toFixed(2)
+                          : Number(products.find(p => p.id === formData.product_id)?.price || 0).toFixed(2)
+                        } ريال/شهر
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>المدة:</span>
@@ -428,12 +481,18 @@ const Subscriptions: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>المجموع قبل الخصم:</span>
-                      <span>{(Number(products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months).toFixed(2)} ريال</span>
+                      <span>
+                        {formData.purchase_id 
+                          ? ((Number(purchases.find(p => p.id === formData.purchase_id)?.purchase_price || 0) / 
+                              (purchases.find(p => p.id === formData.purchase_id)?.max_users || 1)) * formData.duration_months).toFixed(2)
+                          : (Number(products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months).toFixed(2)
+                        } ريال
+                      </span>
                     </div>
                     {formData.discount_percentage > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span>الخصم ({formData.discount_percentage}%):</span>
-                        <span>-{((Number(products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months * formData.discount_percentage) / 100).toFixed(2)} ريال</span>
+                        <span>-{(calculatePrice() * formData.discount_percentage / (100 - formData.discount_percentage)).toFixed(2)} ريال</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-lg border-t border-blue-200 pt-2">
@@ -465,6 +524,7 @@ const Subscriptions: React.FC = () => {
                     setFormData({
                       customer_id: '',
                       product_id: '',
+                      purchase_id: '',
                       duration_months: 1,
                       start_date: new Date().toISOString().split('T')[0],
                       discount_percentage: 0,

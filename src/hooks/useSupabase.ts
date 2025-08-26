@@ -203,6 +203,9 @@ export const useSubscriptions = () => {
         .select(`
           *,
           customer:customers(*),
+          purchase:purchases(*,
+            product:products(*)
+          ),
           pricing_tier:pricing_tiers(*,
             product:products(*)
           )
@@ -221,6 +224,7 @@ export const useSubscriptions = () => {
   const addSubscription = async (subscription: {
     customer_id: string;
     pricing_tier_id: string;
+    purchase_id?: string | null;
     start_date: string;
     end_date: string;
   }) => {
@@ -231,6 +235,9 @@ export const useSubscriptions = () => {
         .select(`
           *,
           customer:customers(*),
+          purchase:purchases(*,
+            product:products(*)
+          ),
           pricing_tier:pricing_tiers(*,
             product:products(*)
           )
@@ -503,6 +510,7 @@ export const usePurchases = () => {
         .from('purchases')
         .select(`
           *,
+          product:products(*),
           sales (
             *,
             customer:customers(*)
@@ -519,12 +527,15 @@ export const usePurchases = () => {
     }
   };
 
-  const addPurchase = async (purchase: Omit<Purchase, 'id' | 'created_at' | 'updated_at' | 'current_users' | 'sales'>) => {
+  const addPurchase = async (purchase: Omit<Purchase, 'id' | 'created_at' | 'updated_at' | 'current_users' | 'sales' | 'product'>) => {
     try {
       const { data, error } = await supabase
         .from('purchases')
         .insert([purchase])
-        .select()
+        .select(`
+          *,
+          product:products(*)
+        `)
         .single();
 
       if (error) throw error;

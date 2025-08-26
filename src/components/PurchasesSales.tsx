@@ -18,12 +18,14 @@ import {
   UserPlus
 } from 'lucide-react';
 import { usePurchases, useSales, useCustomers } from '../hooks/useSupabase';
+import { useProducts } from '../hooks/useSupabase';
 import { Purchase, Sale } from '../types';
 
 const PurchasesSales: React.FC = () => {
   const { purchases, loading: purchasesLoading, error: purchasesError, addPurchase, updatePurchase, deletePurchase } = usePurchases();
   const { sales, loading: salesLoading, error: salesError, addSale, updateSale, deleteSale } = useSales();
   const { customers } = useCustomers();
+  const { products } = useProducts();
   
   const [activeTab, setActiveTab] = useState<'purchases' | 'sales'>('purchases');
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +37,7 @@ const PurchasesSales: React.FC = () => {
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   
   const [purchaseFormData, setPurchaseFormData] = useState({
+    product_id: '',
     service_name: '',
     account_details: '',
     purchase_price: 0,
@@ -130,6 +133,7 @@ const PurchasesSales: React.FC = () => {
   const handleEditPurchase = (purchase: Purchase) => {
     setEditingPurchase(purchase);
     setPurchaseFormData({
+      product_id: purchase.product_id || '',
       service_name: purchase.service_name,
       account_details: purchase.account_details,
       purchase_price: Number(purchase.purchase_price),
@@ -549,6 +553,29 @@ const PurchasesSales: React.FC = () => {
             </h2>
             <form onSubmit={handlePurchaseSubmit} className="space-y-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المنتج (اختياري)</label>
+                <select
+                  value={purchaseFormData.product_id}
+                  onChange={(e) => {
+                    const selectedProduct = products.find(p => p.id === e.target.value);
+                    setPurchaseFormData(prev => ({ 
+                      ...prev, 
+                      product_id: e.target.value,
+                      service_name: selectedProduct ? selectedProduct.name : prev.service_name,
+                      max_users: selectedProduct ? selectedProduct.max_users : prev.max_users
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">اختر المنتج (أو اتركه فارغ)</option>
+                  {products.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - {product.max_users} مستخدم
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">اسم الخدمة</label>
                 <input
                   type="text"
@@ -624,6 +651,7 @@ const PurchasesSales: React.FC = () => {
                     setShowAddModal(false);
                     setEditingPurchase(null);
                     setPurchaseFormData({
+                      product_id: '',
                       service_name: '',
                       account_details: '',
                       purchase_price: 0,

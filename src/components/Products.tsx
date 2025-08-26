@@ -32,7 +32,9 @@ const Products: React.FC = () => {
     features: ['', '', ''],
     icon: 'Package',
     color: 'from-blue-500 to-purple-500',
-    is_popular: false
+    is_popular: false,
+    max_users: 1,
+    available_slots: 0
   });
 
   const iconOptions = [
@@ -95,7 +97,9 @@ const Products: React.FC = () => {
         features: ['', '', ''],
         icon: 'Package',
         color: 'from-blue-500 to-purple-500',
-        is_popular: false
+        is_popular: false,
+        max_users: 1,
+        available_slots: 0
       });
     }
   };
@@ -110,7 +114,9 @@ const Products: React.FC = () => {
       features: [...product.features, ...Array(Math.max(0, 3 - product.features.length)).fill('')],
       icon: product.icon,
       color: product.color,
-      is_popular: product.is_popular
+      is_popular: product.is_popular,
+      max_users: product.max_users || 1,
+      available_slots: product.available_slots || 0
     });
     setShowAddModal(true);
   };
@@ -230,6 +236,14 @@ const Products: React.FC = () => {
                       </li>
                     ))}
                   </ul>
+                  
+                  {/* عرض المستخدمين المتاحين */}
+                  <div className="mt-3 flex items-center justify-between text-xs">
+                    <span className="text-gray-500">المستخدمين المتاحين:</span>
+                    <span className={`font-medium ${product.available_slots > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {product.available_slots || 0}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Price */}
@@ -334,6 +348,18 @@ const Products: React.FC = () => {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأقصى للمستخدمين</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.max_users}
+                    onChange={(e) => setFormData(prev => ({ ...prev, max_users: parseInt(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="1"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">الفئة</label>
                   <select
                     value={formData.category}
@@ -422,7 +448,9 @@ const Products: React.FC = () => {
                       features: ['', '', ''],
                       icon: 'Package',
                       color: 'from-blue-500 to-purple-500',
-                      is_popular: false
+                      is_popular: false,
+                      max_users: 1,
+                      available_slots: 0
                     });
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"

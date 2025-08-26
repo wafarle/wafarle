@@ -18,6 +18,9 @@ export interface Product {
   icon: string;
   color: string;
   is_popular: boolean;
+  max_users: number;
+  current_users: number;
+  available_slots: number;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +44,7 @@ export interface Subscription {
   id: string;
   customer_id: string;
   pricing_tier_id: string;
+  purchase_id?: string;
   start_date: string;
   end_date: string;
   status: 'active' | 'expired' | 'cancelled';
@@ -48,6 +52,7 @@ export interface Subscription {
   updated_at: string;
   customer?: Customer;
   pricing_tier?: PricingTier;
+  purchase?: Purchase;
 }
 
 export interface Invoice {
@@ -74,6 +79,7 @@ export interface DashboardStats {
 
 export interface Purchase {
   id: string;
+  product_id?: string;
   service_name: string;
   account_details: string;
   purchase_price: number;
@@ -84,6 +90,7 @@ export interface Purchase {
   notes: string;
   created_at: string;
   updated_at: string;
+  product?: Product;
   sales?: Sale[];
 }
 

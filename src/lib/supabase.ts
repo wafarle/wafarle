@@ -4,7 +4,16 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('Supabase environment variables:', {
+    url: supabaseUrl,
+    key: supabaseAnonKey ? 'Present' : 'Missing'
+  });
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+}
+
+if (!supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
+  console.error('Invalid Supabase URL format:', supabaseUrl);
+  throw new Error('Invalid Supabase URL format. Expected format: https://your-project-ref.supabase.co');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

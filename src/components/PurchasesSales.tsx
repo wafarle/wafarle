@@ -18,7 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { usePurchases, useSales, useCustomers } from '../hooks/useSupabase';
-import { useProducts } from '../hooks/useSupabase';
+import { useProducts, useInvoices } from '../hooks/useSupabase';
 import { Purchase, Sale } from '../types';
 
 const PurchasesSales: React.FC = () => {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package } from 'lucide-react';
 import { useSubscriptions, useCustomers, useProducts } from '../hooks/useSupabase';
+import { supabase } from '../lib/supabase';
 import { Subscription } from '../types';
 
 const Subscriptions: React.FC = () => {
@@ -45,7 +46,7 @@ const Subscriptions: React.FC = () => {
     const selectedProduct = products.find(p => p.id === formData.product_id);
     if (!selectedProduct) return;
     
-    // Find or create pricing tier for this duration
+    // Create or find pricing tier for this duration
     let pricingTierId = null;
     
     // Check if there's an existing pricing tier for this product and duration
@@ -56,10 +57,29 @@ const Subscriptions: React.FC = () => {
     if (existingTier) {
       pricingTierId = existingTier.id;
     } else {
-      // For now, we'll use the product_id as pricing_tier_id
-      // In a real app, you'd create a new pricing tier here
-      alert('لا يوجد خطة تسعير لهذه المدة. يرجى إضافة خطة تسعير أولاً.');
-      return;
+      // Create new pricing tier for this product and duration
+      try {
+        const { data: newTier, error } = await supabase
+          .from('pricing_tiers')
+          .insert([{
+            product_id: formData.product_id,
+            name: `${selectedProduct.name} - ${formData.duration_months} شهر`,
+            duration_months: formData.duration_months,
+            price: Number(selectedProduct.price) * formData.duration_months,
+            discount_percentage: formData.discount_percentage,
+            features: selectedProduct.features || [],
+            is_recommended: false
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+        pricingTierId = newTier.id;
+      } catch (error) {
+        console.error('Error creating pricing tier:', error);
+        alert('حدث خطأ في إنشاء خطة التسعير');
+        return;
+      }
     }
 
     const startDate = new Date(formData.start_date);
@@ -73,14 +93,11 @@ const Subscriptions: React.FC = () => {
       pricing_tier_id: pricingTierId,
       start_date: formData.start_date,
       end_date: endDate.toISOString().split('T')[0],
-      status: 'active'
+      status: 'active',
+      discount_percentage: formData.discount_percentage,
+      final_price: finalPrice,
+      custom_price: formData.custom_price > 0 ? formData.custom_price : null
     };
-
-    // Store custom pricing info separately if needed
-    if (formData.custom_price > 0 || formData.discount_percentage > 0) {
-      // You could store this in a separate custom_pricing table
-      console.log('Custom pricing:', { finalPrice, discount: formData.discount_percentage });
-    }
 
     let result;
     if (editingSubscription) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import AuthPage from './components/Auth/AuthPage';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -54,17 +55,21 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-      {renderCurrentPage()}
-    </Layout>
+    <ErrorBoundary>
+      <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+        {renderCurrentPage()}
+      </Layout>
+    </ErrorBoundary>
   );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

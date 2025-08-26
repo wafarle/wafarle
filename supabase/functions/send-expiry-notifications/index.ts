@@ -106,10 +106,16 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
   try {
     // استخدام مفتاح API من متغيرات البيئة في Supabase
     const apiKey = Deno.env.get('RESEND_API_KEY') || 're_MPhrVDDG_4fA5bydVSLhSsA4fBDJjkVyX';
-    console.log('API Key exists:', !!apiKey);
     
     if (!apiKey) {
       console.error('RESEND_API_KEY not found in environment variables');
+      return false;
+    }
+
+    // التحقق من صحة البريد الإلكتروني
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailData.to)) {
+      console.error('Invalid email address:', emailData.to);
       return false;
     }
 
@@ -119,7 +125,6 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
       subject: emailData.subject,
       html: emailData.html,
     };
-    
     console.log('Sending email to:', emailData.to);
 
     // استخدام Resend API لإرسال البريد الإلكتروني
@@ -132,15 +137,12 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
       body: JSON.stringify(emailPayload),
     });
   } catch (error) {
-    const responseData = await response.text();
-    console.log('Resend response status:', response.status);
     console.log('Resend response data:', responseData);
 
     if (!response.ok) {
       console.error('Resend API Error:', response.status, responseData);
       return false;
     }
-
     console.log('Email sent successfully to:', emailData.to);
     return true;
     console.error('Error sending email:', error);
@@ -201,11 +203,8 @@ Deno.serve(async (req: Request) => {
 
     // إرسال التنبيهات
     for (const subscription of subscriptions) {
-      console.log('Processing subscription:', subscription.id);
-      console.log('Customer email:', subscription.customer?.email);
       
       if (!subscription.customer?.email) {
-        console.log('Skipping subscription - no email');
         results.push({
           subscription_id: subscription.id,
           status: 'skipped',
@@ -218,8 +217,6 @@ Deno.serve(async (req: Request) => {
       const endDate = new Date(subscription.end_date);
       const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      console.log('Days left:', daysLeft);
-      console.log('End date:', subscription.end_date);
 
       // إنشاء محتوى البريد الإلكتروني
       const customerName = subscription.customer.name;
@@ -232,10 +229,8 @@ Deno.serve(async (req: Request) => {
         html: createEmailTemplate(customerName, productName, daysLeft, formattedEndDate)
       };
 
-      console.log('Attempting to send email...');
       // إرسال البريد الإلكتروني
       const emailSent = await sendEmail(emailData);
-      console.log('Email sent result:', emailSent);
 
       if (emailSent) {
         emailsSent++;

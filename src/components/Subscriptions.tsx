@@ -63,6 +63,32 @@ const Subscriptions: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // التحقق من صحة البيانات قبل الإرسال
+    if (!formData.customer_id) {
+      alert('يرجى اختيار العميل');
+      return;
+    }
+
+    if (!formData.product_id) {
+      alert('يرجى اختيار المنتج');
+      return;
+    }
+
+    if (formData.duration_months < 1) {
+      alert('مدة الاشتراك يجب أن تكون على الأقل شهر واحد');
+      return;
+    }
+
+    if (formData.discount_percentage < 0 || formData.discount_percentage > 100) {
+      alert('نسبة الخصم يجب أن تكون بين 0 و 100');
+      return;
+    }
+
+    if (formData.custom_price < 0) {
+      alert('السعر المخصص لا يمكن أن يكون سالباً');
+      return;
+    }
+
     const selectedProduct = products.find(p => p.id === formData.product_id);
     if (!selectedProduct) return;
     

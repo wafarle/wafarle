@@ -131,7 +131,21 @@ const ExpiringSubscriptions: React.FC = () => {
     setNotificationResult(null);
 
     try {
+      // التحقق من وجود اشتراكات منتهية
+      if (expiringSubscriptions.length === 0) {
+        setNotificationResult('✅ لا توجد اشتراكات تحتاج تنبيهات في الوقت الحالي');
+        setSendingNotifications(false);
+        return;
+      }
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-expiry-notifications`;
+      
+      if (!apiUrl || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        setNotificationResult('❌ خطأ في إعدادات النظام');
+        setSendingNotifications(false);
+        return;
+      }
+
       const headers = {
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',

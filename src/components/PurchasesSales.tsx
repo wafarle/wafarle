@@ -185,6 +185,27 @@ const PurchasesSales: React.FC = () => {
   const handleSaleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // التحقق من صحة البيانات قبل الإرسال
+    if (!saleFormData.purchase_id) {
+      alert('يرجى اختيار المشتريات');
+      return;
+    }
+
+    if (!saleFormData.customer_id) {
+      alert('يرجى اختيار العميل');
+      return;
+    }
+
+    if (saleFormData.sale_price <= 0) {
+      alert('سعر البيع يجب أن يكون أكبر من صفر');
+      return;
+    }
+
+    if (!saleFormData.access_details.trim() || saleFormData.access_details.trim().length < 5) {
+      alert('تفاصيل الوصول يجب أن تكون على الأقل 5 أحرف');
+      return;
+    }
+
     let result;
     if (editingSale) {
       result = await updateSale(editingSale.id, saleFormData);
@@ -203,6 +224,8 @@ const PurchasesSales: React.FC = () => {
         sale_date: new Date().toISOString().split('T')[0],
         access_details: ''
       });
+    } else {
+      alert(result.error || 'حدث خطأ في حفظ البيانات');
     }
   };
 

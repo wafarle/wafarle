@@ -68,8 +68,25 @@ const Invoices: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // التحقق من صحة البيانات قبل الإرسال
+    if (!formData.customer_id) {
+      alert('يرجى اختيار العميل');
+      return;
+    }
+
     if (formData.selected_subscriptions.length === 0) {
       alert('يرجى اختيار اشتراك واحد على الأقل');
+      return;
+    }
+
+    if (formData.total_amount <= 0) {
+      alert('مبلغ الفاتورة يجب أن يكون أكبر من صفر');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    if (formData.due_date < today) {
+      alert('تاريخ الاستحقاق لا يمكن أن يكون في الماضي');
       return;
     }
 
@@ -123,10 +140,9 @@ const Invoices: React.FC = () => {
 
   // Generate PayPal payment link
   const generatePayPalLink = (invoice: Invoice) => {
-    const baseUrl = 'https://www.paypal.com/paypalme/YourPayPalUsername';
+    const baseUrl = 'https://www.paypal.com/paypalme/wafarle';
     const amount = Number(invoice.amount).toFixed(2);
-    const currency = 'USD'; // PayPal uses USD, you can convert SAR to USD
-    const description = `فاتورة رقم ${invoice.id.slice(-8)} - ${invoice.customer?.name}`;
+    const currency = 'USD';
     
     // PayPal.me link format
     return `${baseUrl}/${amount}${currency}`;

@@ -80,6 +80,27 @@ const Products: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // التحقق من صحة البيانات قبل الإرسال
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      alert('اسم المنتج يجب أن يكون على الأقل حرفين');
+      return;
+    }
+
+    if (!formData.description.trim() || formData.description.trim().length < 10) {
+      alert('وصف المنتج يجب أن يكون على الأقل 10 أحرف');
+      return;
+    }
+
+    if (formData.price < 0) {
+      alert('السعر لا يمكن أن يكون سالباً');
+      return;
+    }
+
+    if (formData.max_users < 1) {
+      alert('عدد المستخدمين يجب أن يكون على الأقل 1');
+      return;
+    }
+
     // Remove selected_purchase_id from form data before submitting
     const { selected_purchase_id, ...productData } = formData;
     

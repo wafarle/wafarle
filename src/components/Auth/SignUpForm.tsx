@@ -24,19 +24,40 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
     setLoading(true);
     setError(null);
 
-    if (formData.password !== formData.confirmPassword) {
+    // تنظيف البيانات
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
+    const confirmPassword = formData.confirmPassword;
+
+    // التحقق من صحة البيانات
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('البريد الإلكتروني غير صحيح');
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
       setError('كلمات المرور غير متطابقة');
       setLoading(false);
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+    if (password.length < 8) {
+      setError('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
       setLoading(false);
       return;
     }
 
-    const { error } = await signUp(formData.email, formData.password);
+    // التحقق من قوة كلمة المرور
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+    if (!passwordRegex.test(password)) {
+      setError('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم');
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await signUp(email, password);
     
     if (error) {
       if (error.message.includes('already registered')) {
@@ -126,7 +147,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">يجب أن تكون 6 أحرف على الأقل</p>
+          <p className="text-xs text-gray-500 mt-1">يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كبير وصغير ورقم</p>
         </div>
 
         <div>

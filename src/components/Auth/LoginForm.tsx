@@ -21,7 +21,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
     setLoading(true);
     setError(null);
 
-    const { error } = await signIn(formData.email, formData.password);
+    // تنظيف البيانات
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
+
+    // التحقق من صحة البيانات
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('البريد الإلكتروني غير صحيح');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await signIn(email, password);
     
     if (error) {
       setError(error.message === 'Invalid login credentials' 

@@ -27,9 +27,29 @@ export const useCustomers = () => {
 
   const addCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      // تنظيف وتحقق من البيانات
+      const sanitizedCustomer = {
+        name: customer.name.trim(),
+        email: customer.email.trim().toLowerCase(),
+        phone: customer.phone.trim(),
+        address: customer.address.trim()
+      };
+
+      // التحقق من صحة البريد الإلكتروني
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(sanitizedCustomer.email)) {
+        throw new Error('البريد الإلكتروني غير صحيح');
+      }
+
+      // التحقق من صحة رقم الهاتف
+      const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
+      if (!phoneRegex.test(sanitizedCustomer.phone)) {
+        throw new Error('رقم الهاتف غير صحيح');
+      }
+
       const { data, error } = await supabase
         .from('customers')
-        .insert([customer])
+        .insert([sanitizedCustomer])
         .select()
         .single();
 
@@ -45,9 +65,30 @@ export const useCustomers = () => {
 
   const updateCustomer = async (id: string, updates: Partial<Customer>) => {
     try {
+      // تنظيف البيانات المحدثة
+      const sanitizedUpdates: Partial<Customer> = {};
+      
+      if (updates.name) sanitizedUpdates.name = updates.name.trim();
+      if (updates.email) {
+        const email = updates.email.trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          throw new Error('البريد الإلكتروني غير صحيح');
+        }
+        sanitizedUpdates.email = email;
+      }
+      if (updates.phone) {
+        const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
+        if (!phoneRegex.test(updates.phone.trim())) {
+          throw new Error('رقم الهاتف غير صحيح');
+        }
+        sanitizedUpdates.phone = updates.phone.trim();
+      }
+      if (updates.address) sanitizedUpdates.address = updates.address.trim();
+
       const { data, error } = await supabase
         .from('customers')
-        .update(updates)
+        .update(sanitizedUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -135,9 +176,27 @@ export const useProducts = () => {
 
   const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'pricing_tiers'>) => {
     try {
+      // تنظيف وتحقق من البيانات
+      const sanitizedProduct = {
+        ...product,
+        name: product.name.trim(),
+        description: product.description.trim(),
+        price: Math.max(0, Number(product.price) || 0),
+        max_users: Math.max(1, Number(product.max_users) || 1),
+        features: product.features.filter(f => f && f.trim()).map(f => f.trim())
+      };
+
+      // التحقق من الحقول المطلوبة
+      if (!sanitizedProduct.name || sanitizedProduct.name.length < 2) {
+        throw new Error('اسم المنتج يجب أن يكون على الأقل حرفين');
+      }
+      if (!sanitizedProduct.description || sanitizedProduct.description.length < 10) {
+        throw new Error('وصف المنتج يجب أن يكون على الأقل 10 أحرف');
+      }
+
       const { data, error } = await supabase
         .from('products')
-        .insert([product])
+        .insert([sanitizedProduct])
         .select()
         .single();
 
@@ -603,9 +662,31 @@ export const usePurchases = () => {
 
   const addPurchase = async (purchase: Omit<Purchase, 'id' | 'created_at' | 'updated_at' | 'current_users' | 'sales' | 'product'>) => {
     try {
+      // تنظيف وتحقق من البيانات
+      const sanitizedPurchase = {
+        ...purchase,
+        service_name: purchase.service_name.trim(),
+        account_details: purchase.account_details.trim(),
+        purchase_price: Math.max(0, Number(purchase.purchase_price) || 0),
+        sale_price_per_user: Math.max(0, Number(purchase.sale_price_per_user) || 0),
+        max_users: Math.max(1, Number(purchase.max_users) || 1),
+        notes: purchase.notes ? purchase.notes.trim() : ''
+      };
+
+      // التحقق من الحقول المطلوبة
+      if (!sanitizedPurchase.service_name || sanitizedPurchase.service_name.length < 2) {
+        throw new Error('اسم الخدمة يجب أن يكون على الأقل حرفين');
+      }
+      if (!sanitizedPurchase.account_details || sanitizedPurchase.account_details.length < 5) {
+        throw new Error('تفاصيل الحساب يجب أن تكون على الأقل 5 أحرف');
+      }
+      if (sanitizedPurchase.purchase_price <= 0) {
+        throw new Error('سعر الشراء يجب أن يكون أكبر من صفر');
+      }
+
       const { data, error } = await supabase
         .from('purchases')
-        .insert([purchase])
+        .insert([sanitizedPurchase])
         .select(`
           *,
           product:products(*)
@@ -704,9 +785,24 @@ export const useSales = () => {
 
   const addSale = async (sale: Omit<Sale, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      // تنظيف وتحقق من البيانات
+      const sanitizedSale = {
+        ...sale,
+        sale_price: Math.max(0, Number(sale.sale_price) || 0),
+        access_details: sale.access_details.trim()
+      };
+
+      // التحقق من الحقول المطلوبة
+      if (sanitizedSale.sale_price <= 0) {
+        throw new Error('سعر البيع يجب أن يكون أكبر من صفر');
+      }
+      if (!sanitizedSale.access_details || sanitizedSale.access_details.length < 5) {
+        throw new Error('تفاصيل الوصول يجب أن تكون على الأقل 5 أحرف');
+      }
+
       const { data, error } = await supabase
         .from('sales')
-        .insert([sale])
+        .insert([sanitizedSale])
         .select(`
           *,
           purchase:purchases(*),

@@ -24,6 +24,29 @@ const Customers: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // التحقق من صحة البيانات قبل الإرسال
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      alert('الاسم يجب أن يكون على الأقل حرفين');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      alert('البريد الإلكتروني غير صحيح');
+      return;
+    }
+
+    const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
+    if (!phoneRegex.test(formData.phone.trim())) {
+      alert('رقم الهاتف غير صحيح');
+      return;
+    }
+
+    if (!formData.address.trim() || formData.address.trim().length < 5) {
+      alert('العنوان يجب أن يكون على الأقل 5 أحرف');
+      return;
+    }
+
     let result;
     if (editingCustomer) {
       result = await updateCustomer(editingCustomer.id, formData);
@@ -35,6 +58,8 @@ const Customers: React.FC = () => {
       setShowAddModal(false);
       setEditingCustomer(null);
       setFormData({ name: '', email: '', phone: '', address: '' });
+    } else {
+      alert(result.error || 'حدث خطأ في حفظ البيانات');
     }
   };
 

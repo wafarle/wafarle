@@ -94,12 +94,12 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
             <div className="flex items-center">
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-medium">
-                  {user?.email?.charAt(0).toUpperCase()}
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
                 </span>
               </div>
               <div className="mr-3">
                 <p className="text-sm font-medium text-gray-900 truncate max-w-32">
-                  {user?.email}
+                  {user?.email || 'مستخدم'}
                 </p>
                 <p className="text-xs text-gray-500">مدير النظام</p>
               </div>
@@ -130,7 +130,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
               {menuItems.find(item => item.id === currentPage)?.label || 'لوحة المراقبة'}
             </h1>
             <div className="flex items-center space-x-4 space-x-reverse">
-              <span className="text-sm text-gray-600">مرحباً، {user?.email}</span>
+              <span className="text-sm text-gray-600">مرحباً، {user?.email || 'مستخدم'}</span>
               <button
                 onClick={handleSignOut}
                 className="lg:hidden p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

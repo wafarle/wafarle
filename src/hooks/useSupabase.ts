@@ -839,6 +839,8 @@ export const useProfitLoss = () => {
       // حساب الإيرادات من الفواتير المدفوعة
       paidInvoices?.forEach(invoice => {
         const revenue = Number(invoice.total_amount || invoice.amount);
+        if (isNaN(revenue) || revenue <= 0) return; // تجاهل الفواتير بدون مبلغ صحيح
+        
         totalRevenue += revenue;
 
         // تجميع البيانات حسب الشهر
@@ -867,11 +869,13 @@ export const useProfitLoss = () => {
             // حساب التكلفة من المشتريات المرتبطة
             if (subscription?.purchase) {
               const purchase = subscription.purchase;
-              if (purchase) {
+              if (purchase && purchase.purchase_price && purchase.max_users && purchase.max_users > 0) {
                 const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
-                totalCosts += costPerUser;
-                monthlyData[month].costs += costPerUser;
-                productData[productName].costs += costPerUser;
+                if (!isNaN(costPerUser) && costPerUser > 0) {
+                  totalCosts += costPerUser;
+                  monthlyData[month].costs += costPerUser;
+                  productData[productName].costs += costPerUser;
+                }
               }
             }
           });
@@ -888,11 +892,13 @@ export const useProfitLoss = () => {
           // حساب التكلفة من المشتريات المرتبطة
           if (invoice.subscription?.purchase) {
             const purchase = invoice.subscription.purchase;
-            if (purchase) {
+            if (purchase && purchase.purchase_price && purchase.max_users && purchase.max_users > 0) {
               const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
-              totalCosts += costPerUser;
-              monthlyData[month].costs += costPerUser;
-              productData[productName].costs += costPerUser;
+              if (!isNaN(costPerUser) && costPerUser > 0) {
+                totalCosts += costPerUser;
+                monthlyData[month].costs += costPerUser;
+                productData[productName].costs += costPerUser;
+              }
             }
           }
         }
@@ -901,10 +907,14 @@ export const useProfitLoss = () => {
       // إضافة إيرادات وتكاليف المبيعات المباشرة
       activeSales?.forEach(sale => {
         const saleRevenue = Number(sale.sale_price);
+        if (isNaN(saleRevenue) || saleRevenue <= 0) return; // تجاهل المبيعات بدون مبلغ صحيح
+        
         const purchase = sale.purchase;
         
-        if (purchase) {
+        if (purchase && purchase.purchase_price && purchase.max_users && purchase.max_users > 0) {
           const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+          if (isNaN(costPerUser) || costPerUser <= 0) return; // تجاهل التكاليف غير الصحيحة
+          
           const serviceName = purchase.service_name || 'خدمة غير محددة';
           
           // إضافة للإيرادات والتكاليف الإجمالية

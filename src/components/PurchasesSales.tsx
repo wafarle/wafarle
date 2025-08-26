@@ -97,18 +97,22 @@ const PurchasesSales: React.FC = () => {
       // حساب التكلفة من المشتريات المرتبطة
       invoice.invoice_items.forEach(item => {
         const subscription = item.subscription;
-        if (subscription?.purchase) {
+        if (subscription?.purchase && subscription.purchase.purchase_price && subscription.purchase.max_users) {
           const costPerUser = Number(subscription.purchase.purchase_price) / subscription.purchase.max_users;
-          totalCostFromInvoices += costPerUser;
+          if (!isNaN(costPerUser) && costPerUser > 0) {
+            totalCostFromInvoices += costPerUser;
+          }
         }
       });
     } else if (invoice.subscription) {
       totalSalesFromInvoices += 1;
       
       // حساب التكلفة من المشتريات المرتبطة
-      if (invoice.subscription.purchase) {
+      if (invoice.subscription.purchase && invoice.subscription.purchase.purchase_price && invoice.subscription.purchase.max_users) {
         const costPerUser = Number(invoice.subscription.purchase.purchase_price) / invoice.subscription.purchase.max_users;
-        totalCostFromInvoices += costPerUser;
+        if (!isNaN(costPerUser) && costPerUser > 0) {
+          totalCostFromInvoices += costPerUser;
+        }
       }
     }
   });
@@ -119,9 +123,11 @@ const PurchasesSales: React.FC = () => {
   const totalDirectRevenue = directSales.reduce((sum, s) => sum + Number(s.sale_price), 0);
   const totalDirectCost = directSales.reduce((sum, s) => {
     const purchase = purchases.find(p => p.id === s.purchase_id);
-    if (purchase) {
+    if (purchase && purchase.purchase_price && purchase.max_users) {
       const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
-      return sum + costPerUser;
+      if (!isNaN(costPerUser) && costPerUser > 0) {
+        return sum + costPerUser;
+      }
     }
     return sum;
   }, 0);

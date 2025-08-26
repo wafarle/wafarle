@@ -82,7 +82,7 @@ const ProfitLoss: React.FC = () => {
             </div>
             <div className="mr-4">
               <p className="text-sm font-medium text-gray-600">إجمالي التكاليف</p>
-              <p className="text-2xl font-bold text-gray-900">ر.س {totalCosts.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">ر.س {(totalCosts || 0).toFixed(2)}</p>
               <p className="text-xs text-red-600">تكلفة المشتريات</p>
             </div>
           </div>
@@ -96,7 +96,7 @@ const ProfitLoss: React.FC = () => {
             <div className="mr-4">
               <p className="text-sm font-medium text-gray-600">صافي الربح</p>
               <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ر.س {netProfit.toFixed(2)}
+                ر.س {(netProfit || 0).toFixed(2)}
               </p>
               <p className={`text-xs ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {netProfit >= 0 ? 'ربح' : 'خسارة'}
@@ -113,7 +113,7 @@ const ProfitLoss: React.FC = () => {
             <div className="mr-4">
               <p className="text-sm font-medium text-gray-600">هامش الربح</p>
               <p className={`text-2xl font-bold ${profitMargin >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                {profitMargin.toFixed(1)}%
+                {(profitMargin || 0).toFixed(1)}%
               </p>
               <p className="text-xs text-gray-500">من الإيرادات</p>
             </div>

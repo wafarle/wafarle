@@ -359,7 +359,7 @@ export const useInvoices = () => {
               product:products(*)
             )
           ),
-          invoice_items!left(*,
+          invoice_items(*,
             subscription:subscriptions(*,
               pricing_tier:pricing_tiers(*,
                 product:products(*)

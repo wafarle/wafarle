@@ -10,7 +10,8 @@ import {
   Package,
   ShoppingBag,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -32,6 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'purchases-sales', label: 'المشتريات والمبيعات', icon: ShoppingBag },
     { id: 'profit-loss', label: 'المكاسب والخسائر', icon: TrendingUp },
+    { id: 'expiring-subscriptions', label: 'الاشتراكات المنتهية', icon: AlertTriangle },
   ];
 
   const handleSignOut = async () => {

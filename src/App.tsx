@@ -9,6 +9,7 @@ import Subscriptions from './components/Subscriptions';
 import Invoices from './components/Invoices';
 import PurchasesSales from './components/PurchasesSales';
 import ProfitLoss from './components/ProfitLoss';
+import ExpiringSubscriptions from './components/ExpiringSubscriptions';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -45,6 +46,8 @@ const AppContent: React.FC = () => {
         return <PurchasesSales />;
       case 'profit-loss':
         return <ProfitLoss />;
+      case 'expiring-subscriptions':
+        return <ExpiringSubscriptions />;
       default:
         return <Dashboard />;
     }

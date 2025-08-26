@@ -21,8 +21,13 @@ const Invoices: React.FC = () => {
 
   // Get customer's active subscriptions
   const customerSubscriptions = subscriptions.filter(sub => {
-    // فلترة الاشتراكات النشطة للعميل المحدد
-    if (sub.customer_id !== formData.customer_id || sub.status !== 'active') {
+    // فلترة الاشتراكات النشطة للعميل المحدد فقط
+    if (sub.customer_id !== formData.customer_id) {
+      return false;
+    }
+    
+    // التأكد من أن الاشتراك نشط
+    if (sub.status !== 'active') {
       return false;
     }
     

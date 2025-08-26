@@ -235,8 +235,8 @@ const Products: React.FC = () => {
                 {/* Price */}
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <span className="text-2xl font-bold text-gray-900">{product.price || 0}</span>
-                    <span className="text-gray-600 text-sm mr-1">ريال</span>
+                    <span className="text-green-600 font-bold text-lg">ر.س</span>
+                    <span className="text-2xl font-bold text-gray-900 mr-1">{Number(product.price || 0).toFixed(2)}</span>
                   </div>
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                     {product.category === 'productivity' ? 'إنتاجية' :

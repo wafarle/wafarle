@@ -275,8 +275,8 @@ const Invoices: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm font-medium text-gray-900">
-                      <DollarSign className="w-4 h-4 ml-1" />
-                      {invoice.amount} ريال
+                      <span className="text-green-600 font-medium">ر.س</span>
+                      <span className="mr-1">{Number(invoice.amount).toFixed(2)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

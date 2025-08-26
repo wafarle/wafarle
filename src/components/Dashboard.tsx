@@ -83,7 +83,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="mr-4">
               <p className="text-sm font-medium text-gray-600">إجمالي الإيرادات</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_revenue.toLocaleString()} ريال</p>
+              <p className="text-2xl font-bold text-gray-900">ر.س {stats.total_revenue.toLocaleString()}</p>
               <p className="text-xs text-green-600 flex items-center mt-1">
                 <TrendingUp className="w-3 h-3 ml-1" />
                 +15% من الشهر الماضي
@@ -134,7 +134,7 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">{subscription.pricing_tier?.price || 0} ريال</p>
+                    <p className="font-medium text-gray-900">ر.س {Number(subscription.pricing_tier?.price || 0).toFixed(2)}</p>
                     <p className="text-sm text-gray-500 flex items-center">
                       <Calendar className="w-3 h-3 ml-1" />
                       {new Date(subscription.created_at).toLocaleDateString('ar-SA')}
@@ -182,7 +182,7 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">{invoice.amount} ريال</p>
+                    <p className="font-medium text-gray-900">ر.س {Number(invoice.amount).toFixed(2)}</p>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
                       invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :

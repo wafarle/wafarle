@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Download, Eye, DollarSign, Calendar, AlertTriangle, Loader2, Edit, Trash2 } from 'lucide-react';
 import { useInvoices, useSubscriptions, useCustomers } from '../hooks/useSupabase';
-import { Invoice } from '../types';
+import { Invoice, Subscription } from '../types';
 
 const Invoices: React.FC = () => {
   const { invoices, loading, error, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
@@ -12,11 +12,31 @@ const Invoices: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [formData, setFormData] = useState({
-    subscription_id: '',
     customer_id: '',
+    selected_subscriptions: [] as string[],
     amount: 0,
     due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days from now
   });
+
+  // Get customer's active subscriptions
+  const customerSubscriptions = subscriptions.filter(
+    sub => sub.customer_id === formData.customer_id && sub.status === 'active'
+  );
+
+  // Calculate total amount based on selected subscriptions
+  const calculateTotalAmount = () => {
+    return formData.selected_subscriptions.reduce((total, subId) => {
+      const subscription = subscriptions.find(s => s.id === subId);
+      const price = subscription?.final_price || subscription?.pricing_tier?.price || 0;
+      return total + Number(price);
+    }, 0);
+  };
+
+  // Update amount when subscriptions change
+  React.useEffect(() => {
+    const totalAmount = calculateTotalAmount();
+    setFormData(prev => ({ ...prev, amount: totalAmount }));
+  }, [formData.selected_subscriptions, subscriptions]);
 
   const filteredInvoices = invoices.filter(invoice => {
     const customerName = invoice.customer?.name || '';
@@ -29,19 +49,33 @@ const Invoices: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (formData.selected_subscriptions.length === 0) {
+      alert('يرجى اختيار اشتراك واحد على الأقل');
+      return;
+    }
+
+    // Create invoice for the first subscription (main one)
+    const mainSubscriptionId = formData.selected_subscriptions[0];
+    const invoiceData = {
+      subscription_id: mainSubscriptionId,
+      customer_id: formData.customer_id,
+      amount: formData.amount,
+      due_date: formData.due_date
+    };
+
     let result;
     if (editingInvoice) {
-      result = await updateInvoice(editingInvoice.id, formData);
+      result = await updateInvoice(editingInvoice.id, invoiceData);
     } else {
-      result = await addInvoice(formData);
+      result = await addInvoice(invoiceData);
     }
 
     if (result.success) {
       setShowAddModal(false);
       setEditingInvoice(null);
       setFormData({
-        subscription_id: '',
         customer_id: '',
+        selected_subscriptions: [],
         amount: 0,
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       });
@@ -51,8 +85,8 @@ const Invoices: React.FC = () => {
   const handleEdit = (invoice: Invoice) => {
     setEditingInvoice(invoice);
     setFormData({
-      subscription_id: invoice.subscription_id,
       customer_id: invoice.customer_id,
+      selected_subscriptions: [invoice.subscription_id],
       amount: Number(invoice.amount),
       due_date: invoice.due_date
     });
@@ -70,6 +104,15 @@ const Invoices: React.FC = () => {
       status: 'paid',
       paid_date: new Date().toISOString().split('T')[0]
     });
+  };
+
+  const handleSubscriptionToggle = (subscriptionId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selected_subscriptions: prev.selected_subscriptions.includes(subscriptionId)
+        ? prev.selected_subscriptions.filter(id => id !== subscriptionId)
+        : [...prev.selected_subscriptions, subscriptionId]
+    }));
   };
 
   const getStatusBadge = (status: string) => {
@@ -300,7 +343,11 @@ const Invoices: React.FC = () => {
                 <select
                   required
                   value={formData.customer_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    customer_id: e.target.value,
+                    selected_subscriptions: [] // Reset subscriptions when customer changes
+                  }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">اختر العميل</option>
@@ -310,33 +357,67 @@ const Invoices: React.FC = () => {
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الاشتراك</label>
-                <select
-                  required
-                  value={formData.subscription_id}
-                  onChange={(e) => {
-                    const subscription = subscriptions.find(s => s.id === e.target.value);
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      subscription_id: e.target.value,
-                      amount: subscription?.pricing_tier?.price || 0
-                    }));
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">اختر الاشتراك</option>
-                  {subscriptions.filter(s => s.status === 'active').map(subscription => (
-                    <option key={subscription.id} value={subscription.id}>
-                      {subscription.customer?.name} - {subscription.pricing_tier?.product?.name} ({subscription.pricing_tier?.name})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Customer's Subscriptions */}
+              {formData.customer_id && customerSubscriptions.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    اشتراكات العميل ({customerSubscriptions.length})
+                  </label>
+                  <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                    {customerSubscriptions.map((subscription) => (
+                      <div key={subscription.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`sub-${subscription.id}`}
+                            checked={formData.selected_subscriptions.includes(subscription.id)}
+                            onChange={() => handleSubscriptionToggle(subscription.id)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label htmlFor={`sub-${subscription.id}`} className="mr-3 cursor-pointer">
+                            <div className="font-medium text-gray-900">
+                              {subscription.pricing_tier?.product?.name || 'منتج غير محدد'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {subscription.pricing_tier?.name} - 
+                              من {new Date(subscription.start_date).toLocaleDateString('ar-SA')} 
+                              إلى {new Date(subscription.end_date).toLocaleDateString('ar-SA')}
+                            </div>
+                          </label>
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold text-gray-900">
+                            {Number(subscription.final_price || subscription.pricing_tier?.price || 0).toFixed(2)} ريال
+                          </div>
+                          {subscription.discount_percentage > 0 && (
+                            <div className="text-xs text-green-600">
+                              خصم {subscription.discount_percentage}%
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No subscriptions message */}
+              {formData.customer_id && customerSubscriptions.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600 ml-2" />
+                    <span className="text-sm text-yellow-800">
+                      لا توجد اشتراكات نشطة لهذا العميل
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ريال)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    المبلغ الإجمالي (ريال)
+                  </label>
                   <input
                     type="number"
                     required
@@ -344,9 +425,15 @@ const Invoices: React.FC = () => {
                     step="0.01"
                     value={formData.amount}
                     onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
                     placeholder="0.00"
+                    readOnly={formData.selected_subscriptions.length > 0}
                   />
+                  {formData.selected_subscriptions.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      المبلغ محسوب تلقائياً من الاشتراكات المحددة
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الاستحقاق</label>
@@ -360,6 +447,31 @@ const Invoices: React.FC = () => {
                 </div>
               </div>
 
+              {/* Invoice Summary */}
+              {formData.selected_subscriptions.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-3">ملخص الفاتورة:</h4>
+                  <div className="space-y-2">
+                    {formData.selected_subscriptions.map(subId => {
+                      const subscription = subscriptions.find(s => s.id === subId);
+                      const price = subscription?.final_price || subscription?.pricing_tier?.price || 0;
+                      return (
+                        <div key={subId} className="flex justify-between text-sm text-blue-800">
+                          <span>{subscription?.pricing_tier?.product?.name}</span>
+                          <span>{Number(price).toFixed(2)} ريال</span>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t border-blue-200 pt-2 mt-2">
+                      <div className="flex justify-between font-bold text-blue-900">
+                        <span>المجموع الإجمالي:</span>
+                        <span>{formData.amount.toFixed(2)} ريال</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end space-x-3 space-x-reverse pt-4">
                 <button
                   type="button"
@@ -367,8 +479,8 @@ const Invoices: React.FC = () => {
                     setShowAddModal(false);
                     setEditingInvoice(null);
                     setFormData({
-                      subscription_id: '',
                       customer_id: '',
+                      selected_subscriptions: [],
                       amount: 0,
                       due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
                     });

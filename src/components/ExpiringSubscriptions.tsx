@@ -497,11 +497,11 @@ const ExpiringSubscriptions: React.FC = () => {
           <div>
             <h4 className="font-medium text-blue-900 mb-2">إعداد خدمة البريد الإلكتروني:</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• ✅ تم إعداد مفتاح Resend API بنجاح</li>
+              <li>• ✅ تم ربط قاعدة البيانات بـ Resend بنجاح</li>
               <li>• البريد المرسل من: <code className="bg-blue-100 px-1 rounded">onboarding@resend.dev</code></li>
               <li>• سيتم إرسال تنبيهات للاشتراكات التي تنتهي خلال 5 أيام</li>
               <li>• الرسائل تحتوي على تفاصيل الاشتراك وتاريخ الانتهاء</li>
-              <li>• يمكن تخصيص معلومات التواصل في الرسالة</li>
+              <li>• ✅ النظام جاهز لإرسال التنبيهات التلقائية</li>
             </ul>
           </div>
         </div>

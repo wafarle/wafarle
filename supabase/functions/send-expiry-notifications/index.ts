@@ -46,12 +46,12 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6; }
             .container { max-width: 600px; margin: 0 auto; background-color: white; }
-            .header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 30px; text-align: center; }
+            .header { background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; padding: 30px; text-align: center; }
             .content { padding: 30px; }
             .alert-box { background-color: #fef2f2; border: 2px solid ${urgencyColor}; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
             .alert-text { color: ${urgencyColor}; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
             .product-info { background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .renew-button { display: inline-block; background-color: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+            .contact-info { background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }
             .footer { background-color: #f8fafc; padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
         </style>
     </head>
@@ -79,12 +79,12 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
                 
                 <p>لضمان استمرارية الخدمة، يرجى تجديد اشتراكك قبل انتهاء الصلاحية.</p>
                 
-                <p><strong>للتجديد أو الاستفسار:</strong></p>
-                <ul>
-                    <li>📧 البريد الإلكتروني: support@yourcompany.com</li>
-                    <li>📱 الهاتف: +966501234567</li>
-                    <li>💬 واتساب: +966501234567</li>
-                </ul>
+                <div class="contact-info">
+                    <h3>📞 للتجديد أو الاستفسار:</h3>
+                    <p>📧 <strong>البريد الإلكتروني:</strong> support@yourcompany.com</p>
+                    <p>📱 <strong>الهاتف:</strong> +966501234567</p>
+                    <p>💬 <strong>واتساب:</strong> +966501234567</p>
+                </div>
                 
                 <p>إذا كان لديك أي استفسارات، لا تتردد في التواصل معنا.</p>
                 
@@ -92,7 +92,7 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
             </div>
             
             <div class="footer">
-                <p>هذه رسالة تلقائية من نظام إدارة الاشتراكات</p>
+                <p>📧 هذه رسالة تلقائية من نظام إدارة الاشتراكات</p>
                 <p>© 2025 جميع الحقوق محفوظة</p>
             </div>
         </div>
@@ -104,7 +104,8 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
 // إرسال البريد الإلكتروني باستخدام خدمة خارجية (مثل SendGrid أو Resend)
 const sendEmail = async (emailData: EmailData): Promise<boolean> => {
   try {
-    const apiKey = Deno.env.get('RESEND_API_KEY');
+    // استخدام مفتاح API من متغيرات البيئة في Supabase
+    const apiKey = Deno.env.get('RESEND_API_KEY') || 're_MPhrVDDG_4fA5bydVSLhSsA4fBDJjkVyX';
     console.log('API Key exists:', !!apiKey);
     
     if (!apiKey) {
@@ -113,14 +114,13 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
     }
 
     const emailPayload = {
-      from: 'Subscription System <onboarding@resend.dev>',
+      from: 'نظام إدارة الاشتراكات <onboarding@resend.dev>',
       to: [emailData.to],
       subject: emailData.subject,
       html: emailData.html,
     };
     
     console.log('Sending email to:', emailData.to);
-    console.log('Email payload:', JSON.stringify(emailPayload, null, 2));
 
     // استخدام Resend API لإرسال البريد الإلكتروني
     const response = await fetch('https://api.resend.com/emails', {
@@ -132,6 +132,17 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
       body: JSON.stringify(emailPayload),
     });
   } catch (error) {
+    const responseData = await response.text();
+    console.log('Resend response status:', response.status);
+    console.log('Resend response data:', responseData);
+
+    if (!response.ok) {
+      console.error('Resend API Error:', response.status, responseData);
+      return false;
+    }
+
+    console.log('Email sent successfully to:', emailData.to);
+    return true;
     console.error('Error sending email:', error);
     return false;
   }
@@ -263,17 +274,6 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-    const responseData = await response.text();
-    console.log('Resend response status:', response.status);
-    console.log('Resend response data:', responseData);
-
-    if (!response.ok) {
-      console.error('Resend API Error:', response.status, responseData);
-      return false;
-    }
-
-    console.log('Email sent successfully to:', emailData.to);
-    return true;
   } catch (error) {
     console.error('Error in send-expiry-notifications:', error);
     return new Response(

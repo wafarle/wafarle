@@ -81,9 +81,9 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
                 
                 <div class="contact-info">
                     <h3>📞 للتجديد أو الاستفسار:</h3>
-                    <p>📧 <strong>البريد الإلكتروني:</strong> support@yourcompany.com</p>
-                    <p>📱 <strong>الهاتف:</strong> +966501234567</p>
-                    <p>💬 <strong>واتساب:</strong> +966501234567</p>
+                    <p>📧 <strong>البريد الإلكتروني:</strong> team@wafarle.com</p>
+                    <p>📱 <strong>الهاتف:</strong> +966123456789</p>
+                    <p>💬 <strong>واتساب:</strong> +966123456789</p>
                 </div>
                 
                 <p>إذا كان لديك أي استفسارات، لا تتردد في التواصل معنا.</p>
@@ -92,8 +92,8 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
             </div>
             
             <div class="footer">
-                <p>📧 هذه رسالة تلقائية من نظام إدارة الاشتراكات</p>
-                <p>© 2025 جميع الحقوق محفوظة</p>
+                <p>📧 هذه رسالة تلقائية من wafarle</p>
+                <p>© 2025 wafarle - جميع الحقوق محفوظة</p>
             </div>
         </div>
     </body>
@@ -114,7 +114,7 @@ const sendEmail = async (emailData: EmailData): Promise<boolean> => {
     }
 
     const emailPayload = {
-      from: 'نظام إدارة الاشتراكات <onboarding@resend.dev>',
+      from: 'wafarle <team@wafarle.com>',
       to: [emailData.to],
       subject: emailData.subject,
       html: emailData.html,

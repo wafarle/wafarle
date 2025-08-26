@@ -168,7 +168,7 @@ const PurchasesSales: React.FC = () => {
     setSaleFormData(prev => ({
       ...prev,
       purchase_id: purchase.id,
-      sale_price: Math.round(Number(purchase.purchase_price) / purchase.max_users)
+      sale_price: Number(purchase.sale_price_per_user) || Math.round(Number(purchase.purchase_price) / purchase.max_users)
     }));
     setShowSaleModal(true);
   };

@@ -146,7 +146,8 @@ const PurchasesSales: React.FC = () => {
     // Convert empty product_id to null to avoid UUID validation error
     const formDataToSubmit = {
       ...purchaseFormData,
-      product_id: purchaseFormData.product_id === '' ? null : purchaseFormData.product_id
+      product_id: purchaseFormData.product_id === '' ? null : purchaseFormData.product_id,
+      sale_price_per_user: purchaseFormData.sale_price_per_user
     };
     
     let result;
@@ -163,6 +164,7 @@ const PurchasesSales: React.FC = () => {
         service_name: '',
         account_details: '',
         purchase_price: 0,
+        sale_price_per_user: 0,
         purchase_date: new Date().toISOString().split('T')[0],
         max_users: 1,
         notes: ''
@@ -201,6 +203,7 @@ const PurchasesSales: React.FC = () => {
       service_name: purchase.service_name,
       account_details: purchase.account_details,
       purchase_price: Number(purchase.purchase_price),
+      sale_price_per_user: Number(purchase.sale_price_per_user) || 0,
       purchase_date: purchase.purchase_date,
       max_users: purchase.max_users,
       notes: purchase.notes
@@ -759,6 +762,7 @@ const PurchasesSales: React.FC = () => {
                       service_name: '',
                       account_details: '',
                       purchase_price: 0,
+                      sale_price_per_user: 0,
                       sale_price_per_user: 0,
                       purchase_date: new Date().toISOString().split('T')[0],
                       max_users: 1,

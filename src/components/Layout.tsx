@@ -9,7 +9,8 @@ import {
   Building,
   Package,
   ShoppingBag,
-  LogOut
+  LogOut,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 

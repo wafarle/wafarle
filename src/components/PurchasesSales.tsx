@@ -122,23 +122,21 @@ const PurchasesSales: React.FC = () => {
   });
   
   // إضافة المبيعات المباشرة (من جدول sales)
-      if (invoice.subscription.purchase && invoice.subscription.purchase.purchase_price && invoice.subscription.purchase.max_users && invoice.subscription.purchase.max_users > 0) {
+  const directSales = sales.filter(s => s.status === 'active');
   const totalDirectSales = directSales.length;
-  const totalDirectRevenue = directSales.reduce((sum, s) => sum + Number(s.sale_price), 0);
-  const totalDirectCost = directSales.reduce((sum, s) => {
   const totalDirectRevenue = directSales.reduce((sum, s) => {
     const salePrice = Number(s.sale_price);
     return isNaN(salePrice) || salePrice <= 0 ? sum : sum + salePrice;
   }, 0);
   
-      const costPerUser = Number(s.purchase.purchase_price) / s.purchase.max_users;
+  const totalDirectCost = directSales.reduce((sum, s) => {
     const saleRevenue = Number(s.sale_price);
     if (isNaN(saleRevenue) || saleRevenue <= 0) return sum; // تجاهل المبيعات بدون مبلغ صحيح
     
+    if (s.purchase && s.purchase.purchase_price && s.purchase.max_users && s.purchase.max_users > 0) {
+      const costPerUser = Number(s.purchase.purchase_price) / s.purchase.max_users;
       if (!isNaN(costPerUser) && costPerUser > 0) {
-        if (!isNaN(costPerUser) && costPerUser > 0) {
-          totalCostFromInvoices += costPerUser;
-        }
+        return sum + costPerUser;
       }
     }
     return sum;

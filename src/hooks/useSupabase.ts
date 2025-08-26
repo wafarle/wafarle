@@ -203,7 +203,7 @@ export const useSubscriptions = () => {
         .select(`
           *,
           customer:customers(*),
-          purchase:purchases(*,
+          purchase:purchases!left(*,
             product:products(*)
           ),
           pricing_tier:pricing_tiers(*,
@@ -235,7 +235,7 @@ export const useSubscriptions = () => {
         .select(`
           *,
           customer:customers(*),
-          purchase:purchases(*,
+          purchase:purchases!left(*,
             product:products(*)
           ),
           pricing_tier:pricing_tiers(*,
@@ -263,7 +263,10 @@ export const useSubscriptions = () => {
         .select(`
           *,
           customer:customers(*),
-          pricing_tier:pricing_tiers(*,
+          purchase:purchases!left(*,
+            product:products(*)
+          ),
+          pricing_tier:pricing_tiers!left(*,
             product:products(*)
           )
         `)

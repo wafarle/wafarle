@@ -429,12 +429,6 @@ ${paypalLink}
                         <button
                           onClick={() => handleMarkAsPaid(invoice)}
                           className="text-green-600 hover:text-green-900 px-2 py-1 text-xs bg-green-50 hover:bg-green-100 rounded"
-                        <button 
-                          onClick={() => {
-                            alert(`تفاصيل الفاتورة:\n\nرقم الفاتورة: #${invoice.id.slice(-8)}\nالعميل: ${invoice.customer?.name || 'غير محدد'}\nالمبلغ: ${Number(invoice.total_amount || invoice.amount).toFixed(2)} ريال\nالحالة: ${getStatusText(invoice.status)}\nتاريخ الإصدار: ${new Date(invoice.issue_date).toLocaleDateString('ar-SA')}\nتاريخ الاستحقاق: ${new Date(invoice.due_date).toLocaleDateString('ar-SA')}`);
-                          }}
-                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
-                          title="عرض تفاصيل الفاتورة"
                         >
                           تم الدفع
                         </button>

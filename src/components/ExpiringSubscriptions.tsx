@@ -11,7 +11,9 @@ import {
   Clock,
   Loader2,
   CheckCircle,
-  XCircle
+  XCircle,
+  Send,
+  Bell
 } from 'lucide-react';
 import { useSubscriptions, useInvoices } from '../hooks/useSupabase';
 import { Subscription } from '../types';
@@ -20,6 +22,8 @@ const ExpiringSubscriptions: React.FC = () => {
   const { subscriptions, loading, error, updateSubscription } = useSubscriptions();
   const { addInvoice } = useInvoices();
   const [renewingIds, setRenewingIds] = useState<Set<string>>(new Set());
+  const [sendingNotifications, setSendingNotifications] = useState(false);
+  const [notificationResult, setNotificationResult] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
 
   // حساب الاشتراكات المنتهية قريباً
@@ -121,6 +125,39 @@ const ExpiringSubscriptions: React.FC = () => {
     }
   };
 
+  // إرسال التنبيهات التلقائية
+  const sendExpiryNotifications = async () => {
+    setSendingNotifications(true);
+    setNotificationResult(null);
+
+    try {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-expiry-notifications`;
+      const headers = {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({})
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setNotificationResult(`✅ ${result.message}`);
+      } else {
+        setNotificationResult(`❌ خطأ: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending notifications:', error);
+      setNotificationResult('❌ حدث خطأ في إرسال التنبيهات');
+    } finally {
+      setSendingNotifications(false);
+    }
+  };
+
   const getDaysLeftBadge = (daysLeft: number) => {
     if (daysLeft === 0) {
       return 'bg-red-100 text-red-800 border-red-200';
@@ -176,6 +213,20 @@ const ExpiringSubscriptions: React.FC = () => {
             الاشتراكات المنتهية قريباً
           </h1>
           <p className="text-gray-600">الاشتراكات التي ستنتهي خلال 5 أيام أو أقل</p>
+        </div>
+        <div className="flex space-x-3 space-x-reverse">
+          <button
+            onClick={sendExpiryNotifications}
+            disabled={sendingNotifications}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {sendingNotifications ? (
+              <Loader2 className="w-4 h-4 animate-spin ml-2" />
+            ) : (
+              <Send className="w-4 h-4 ml-2" />
+            )}
+            إرسال تنبيهات البريد الإلكتروني
+          </button>
         </div>
       </div>
 
@@ -241,6 +292,20 @@ const ExpiringSubscriptions: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* نتيجة إرسال التنبيهات */}
+      {notificationResult && (
+        <div className={`p-4 rounded-lg border ${
+          notificationResult.startsWith('✅') 
+            ? 'bg-green-50 border-green-200 text-green-800' 
+            : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          <div className="flex items-center">
+            <Bell className="w-5 h-5 ml-2" />
+            <span>{notificationResult}</span>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
@@ -413,10 +478,33 @@ const ExpiringSubscriptions: React.FC = () => {
               <p className="text-red-800 text-sm mt-1">
                 يوجد {stats.today} اشتراك ينتهي اليوم. يرجى التواصل مع العملاء فوراً لتجديد اشتراكاتهم.
               </p>
+              <button
+                onClick={sendExpiryNotifications}
+                disabled={sendingNotifications}
+                className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                إرسال تنبيهات فورية
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* معلومات إعداد البريد الإلكتروني */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <Mail className="w-5 h-5 text-blue-600 ml-3 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-blue-900 mb-2">إعداد خدمة البريد الإلكتروني:</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• تأكد من إعداد متغير البيئة <code className="bg-blue-100 px-1 rounded">RESEND_API_KEY</code></li>
+              <li>• يمكنك استخدام خدمات أخرى مثل SendGrid أو Mailgun</li>
+              <li>• سيتم إرسال تنبيهات للاشتراكات التي تنتهي خلال 5 أيام</li>
+              <li>• الرسائل تحتوي على تفاصيل الاشتراك وتاريخ الانتهاء</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

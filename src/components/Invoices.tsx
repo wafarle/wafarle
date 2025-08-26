@@ -20,25 +20,14 @@ const Invoices: React.FC = () => {
   });
 
   // Get customer's active subscriptions
-  const customerSubscriptions = subscriptions.filter(sub => {
-    // فلترة الاشتراكات النشطة للعميل المحدد فقط
-    if (sub.customer_id !== formData.customer_id) {
-      return false;
-    }
-    
-    // التأكد من أن الاشتراك نشط
-    if (sub.status !== 'active') {
-      return false;
-    }
-    
-    // إخفاء الاشتراكات التي لها فواتير موجودة (إلا إذا كنا نعدل فاتورة موجودة)
-    const hasExistingInvoice = invoices.some(invoice => 
+  const customerSubscriptions = subscriptions.filter(sub => 
+    sub.customer_id === formData.customer_id && 
+    sub.status === 'active' &&
+    !invoices.some(invoice => 
       invoice.subscription_id === sub.id && 
       (!editingInvoice || invoice.id !== editingInvoice.id)
-    );
-    
-    return !hasExistingInvoice;
-  });
+    )
+  );
 
   // Get all customer subscriptions (including those with invoices) for editing
   const allCustomerSubscriptions = subscriptions.filter(
@@ -475,15 +464,15 @@ ${paypalLink}
                             id={`sub-${subscription.id}`}
                             checked={formData.selected_subscriptions.includes(subscription.id)}
                             onChange={() => handleSubscriptionToggle(subscription.id)}
-                            disabled={hasInvoice && !editingInvoice}
+                            disabled={hasInvoice}
                             className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 ${
-                              hasInvoice && !editingInvoice ? 'opacity-50 cursor-not-allowed' : ''
+                              hasInvoice ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
                           />
                           <label htmlFor={`sub-${subscription.id}`} className="mr-3 cursor-pointer">
                             <div className="font-medium text-gray-900">
                               {subscription.pricing_tier?.product?.name || 'منتج غير محدد'}
-                              {hasInvoice && !editingInvoice && (
+                              {hasInvoice && (
                                 <span className="text-xs text-orange-600 mr-2">(له فاتورة)</span>
                               )}
                             </div>

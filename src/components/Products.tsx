@@ -263,7 +263,14 @@ const Products: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="text-green-600 font-bold text-lg">ر.س</span>
-                    <span className="text-2xl font-bold text-gray-900 mr-1">{Number(product.price || 0).toFixed(2)}</span>
+                    <span className="text-2xl font-bold text-gray-900 mr-1">
+                      {/* عرض سعر البيع من المشتريات المرتبطة أو السعر العادي */}
+                      {(() => {
+                        const linkedPurchase = purchases.find(p => p.product_id === product.id);
+                        const displayPrice = linkedPurchase?.sale_price_per_user || product.price || 0;
+                        return Number(displayPrice).toFixed(2);
+                      })()}
+                    </span>
                   </div>
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                     {product.category === 'productivity' ? 'إنتاجية' :

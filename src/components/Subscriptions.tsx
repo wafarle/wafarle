@@ -39,13 +39,17 @@ const Subscriptions: React.FC = () => {
       // إذا تم اختيار مشتريات محددة
       const selectedPurchase = purchases.find(p => p.id === formData.purchase_id);
       if (selectedPurchase) {
-        basePrice = Number(selectedPurchase.purchase_price) / selectedPurchase.max_users;
+        // استخدام سعر البيع المحدد أو حساب السعر من تكلفة الشراء
+        basePrice = Number(selectedPurchase.sale_price_per_user) || 
+                   (Number(selectedPurchase.purchase_price) / selectedPurchase.max_users);
       }
     } else if (formData.product_id) {
       // إذا تم اختيار منتج فقط
       const selectedProduct = products.find(p => p.id === formData.product_id);
       if (selectedProduct) {
-        basePrice = Number(selectedProduct.price) || 0;
+        // البحث عن مشتريات مرتبطة بالمنتج لاستخدام سعر البيع
+        const linkedPurchase = purchases.find(p => p.product_id === selectedProduct.id);
+        basePrice = Number(linkedPurchase?.sale_price_per_user) || Number(selectedProduct.price) || 0;
       }
     }
     
@@ -286,7 +290,18 @@ const Subscriptions: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-900">
                       <span className="text-green-600 font-medium">ر.س</span>
-                      <span className="mr-1">{Number(subscription.final_price || subscription.custom_price || subscription.pricing_tier?.price || 0).toFixed(2)}</span>
+                      <span className="mr-1">
+                        {(() => {
+                          // أولوية العرض: السعر المخصص > السعر النهائي > سعر البيع من المشتريات > السعر العادي
+                          const customPrice = subscription.custom_price;
+                          const finalPrice = subscription.final_price;
+                          const purchasePrice = subscription.purchase?.sale_price_per_user;
+                          const tierPrice = subscription.pricing_tier?.price;
+                          
+                          const displayPrice = customPrice || finalPrice || purchasePrice || tierPrice || 0;
+                          return Number(displayPrice).toFixed(2);
+                        })()}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -388,7 +403,7 @@ const Subscriptions: React.FC = () => {
                       .filter(p => p.product_id === formData.product_id && p.status === 'active' && p.current_users < p.max_users)
                       .map(purchase => (
                         <option key={purchase.id} value={purchase.id}>
-                          {purchase.service_name} - {(Number(purchase.purchase_price) / purchase.max_users).toFixed(2)} ريال/مستخدم
+                          {purchase.service_name} - {(Number(purchase.sale_price_per_user) || (Number(purchase.purchase_price) / purchase.max_users)).toFixed(2)} ريال/مستخدم
                           ({purchase.max_users - purchase.current_users} متاح)
                         </option>
                       ))}
@@ -473,9 +488,16 @@ const Subscriptions: React.FC = () => {
                       <span>السعر الأساسي:</span>
                       <span>
                         {formData.purchase_id 
-                          ? (Number(purchases.find(p => p.id === formData.purchase_id)?.purchase_price || 0) / 
-                             (purchases.find(p => p.id === formData.purchase_id)?.max_users || 1)).toFixed(2)
-                          : Number(products.find(p => p.id === formData.product_id)?.price || 0).toFixed(2)
+                          ? (() => {
+                              const purchase = purchases.find(p => p.id === formData.purchase_id);
+                              return (Number(purchase?.sale_price_per_user) || 
+                                     (Number(purchase?.purchase_price || 0) / (purchase?.max_users || 1))).toFixed(2);
+                            })()
+                          : (() => {
+                              const product = products.find(p => p.id === formData.product_id);
+                              const linkedPurchase = purchases.find(p => p.product_id === formData.product_id);
+                              return (Number(linkedPurchase?.sale_price_per_user) || Number(product?.price || 0)).toFixed(2);
+                            })()
                         } ريال/شهر
                       </span>
                     </div>
@@ -487,9 +509,18 @@ const Subscriptions: React.FC = () => {
                       <span>المجموع قبل الخصم:</span>
                       <span>
                         {formData.purchase_id 
-                          ? ((Number(purchases.find(p => p.id === formData.purchase_id)?.purchase_price || 0) / 
-                              (purchases.find(p => p.id === formData.purchase_id)?.max_users || 1)) * formData.duration_months).toFixed(2)
-                          : (Number(products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months).toFixed(2)
+                          ? (() => {
+                              const purchase = purchases.find(p => p.id === formData.purchase_id);
+                              const pricePerMonth = Number(purchase?.sale_price_per_user) || 
+                                                  (Number(purchase?.purchase_price || 0) / (purchase?.max_users || 1));
+                              return (pricePerMonth * formData.duration_months).toFixed(2);
+                            })()
+                          : (() => {
+                              const product = products.find(p => p.id === formData.product_id);
+                              const linkedPurchase = purchases.find(p => p.product_id === formData.product_id);
+                              const pricePerMonth = Number(linkedPurchase?.sale_price_per_user) || Number(product?.price || 0);
+                              return (pricePerMonth * formData.duration_months).toFixed(2);
+                            })()
                         } ريال
                       </span>
                     </div>

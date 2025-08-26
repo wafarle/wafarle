@@ -803,7 +803,8 @@ const PurchasesSales: React.FC = () => {
                     setSaleFormData(prev => ({ 
                       ...prev, 
                       purchase_id: e.target.value,
-                      sale_price: selectedPurchase ? Math.round(Number(selectedPurchase.purchase_price) / selectedPurchase.max_users) : 0
+                      sale_price: selectedPurchase ? 
+                        (Number(selectedPurchase.sale_price_per_user) || Math.round(Number(selectedPurchase.purchase_price) / selectedPurchase.max_users)) : 0
                     }));
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -122,9 +122,8 @@ const PurchasesSales: React.FC = () => {
   const totalDirectSales = directSales.length;
   const totalDirectRevenue = directSales.reduce((sum, s) => sum + Number(s.sale_price), 0);
   const totalDirectCost = directSales.reduce((sum, s) => {
-    const purchase = purchases.find(p => p.id === s.purchase_id);
-    if (purchase && purchase.purchase_price && purchase.max_users) {
-      const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+    if (s.purchase && s.purchase.purchase_price && s.purchase.max_users && s.purchase.max_users > 0) {
+      const costPerUser = Number(s.purchase.purchase_price) / s.purchase.max_users;
       if (!isNaN(costPerUser) && costPerUser > 0) {
         return sum + costPerUser;
       }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package } from 'lucide-react';
 import { useSubscriptions, useCustomers, useProducts } from '../hooks/useSupabase';
 import { Subscription } from '../types';
 
@@ -13,9 +13,11 @@ const Subscriptions: React.FC = () => {
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
   const [formData, setFormData] = useState({
     customer_id: '',
-    pricing_tier_id: '',
+    product_id: '',
+    duration_months: 1,
     start_date: new Date().toISOString().split('T')[0],
-    duration_months: 1
+    discount_percentage: 0,
+    custom_price: 0
   });
 
   const filteredSubscriptions = subscriptions.filter(subscription => {
@@ -27,18 +29,46 @@ const Subscriptions: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const calculatePrice = () => {
+    const selectedProduct = products.find(p => p.id === formData.product_id);
+    if (!selectedProduct) return 0;
+    
+    const basePrice = selectedProduct.price || 0;
+    const totalPrice = basePrice * formData.duration_months;
+    const discountAmount = (totalPrice * formData.discount_percentage) / 100;
+    return totalPrice - discountAmount;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const selectedProduct = products.find(p => p.id === formData.product_id);
+    if (!selectedProduct) return;
+
     const startDate = new Date(formData.start_date);
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + formData.duration_months);
 
+    const finalPrice = formData.custom_price > 0 ? formData.custom_price : calculatePrice();
+
+    // Create a pricing tier for this subscription
+    const pricingTierData = {
+      product_id: formData.product_id,
+      name: `${formData.duration_months} شهر`,
+      duration_months: formData.duration_months,
+      price: finalPrice,
+      discount_percentage: formData.discount_percentage,
+      features: selectedProduct.features || []
+    };
+
+    // For now, we'll use the product price directly in the subscription
     const subscriptionData = {
       customer_id: formData.customer_id,
-      pricing_tier_id: formData.pricing_tier_id,
+      pricing_tier_id: formData.product_id, // We'll use product_id temporarily
       start_date: formData.start_date,
-      end_date: endDate.toISOString().split('T')[0]
+      end_date: endDate.toISOString().split('T')[0],
+      final_price: finalPrice,
+      discount_percentage: formData.discount_percentage
     };
 
     let result;
@@ -53,9 +83,11 @@ const Subscriptions: React.FC = () => {
       setEditingSubscription(null);
       setFormData({
         customer_id: '',
-        pricing_tier_id: '',
+        product_id: '',
+        duration_months: 1,
         start_date: new Date().toISOString().split('T')[0],
-        duration_months: 1
+        discount_percentage: 0,
+        custom_price: 0
       });
     }
   };
@@ -69,9 +101,11 @@ const Subscriptions: React.FC = () => {
     
     setFormData({
       customer_id: subscription.customer_id,
-      pricing_tier_id: subscription.pricing_tier_id,
+      product_id: subscription.pricing_tier?.product?.id || subscription.pricing_tier_id,
+      duration_months: durationMonths,
       start_date: subscription.start_date,
-      duration_months: durationMonths
+      discount_percentage: 0,
+      custom_price: 0
     });
     setShowAddModal(true);
   };
@@ -164,7 +198,7 @@ const Subscriptions: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العميل</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المنتج</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الخطة</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المدة</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">السعر</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ البداية</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الانتهاء</th>
@@ -183,16 +217,21 @@ const Subscriptions: React.FC = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {subscription.pricing_tier?.product?.name || 'غير محدد'}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <Package className="w-5 h-5 text-gray-400 ml-3" />
+                      <span className="text-sm text-gray-900">
+                        {subscription.pricing_tier?.product?.name || 'غير محدد'}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {subscription.pricing_tier?.name || 'غير محدد'}
+                    {subscription.pricing_tier?.duration_months || 1} شهر
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-900">
                       <DollarSign className="w-4 h-4 ml-1" />
-                      {subscription.pricing_tier?.price || 0} ريال/شهر
+                      {subscription.pricing_tier?.price || 0} ريال
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -238,11 +277,12 @@ const Subscriptions: React.FC = () => {
       {/* Add/Edit Subscription Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               {editingSubscription ? 'تعديل الاشتراك' : 'إضافة اشتراك جديد'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Customer Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
                 <select
@@ -258,26 +298,41 @@ const Subscriptions: React.FC = () => {
                 </select>
               </div>
               
+              {/* Product Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">خطة التسعير</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المنتج</label>
                 <select
                   required
-                  value={formData.pricing_tier_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, pricing_tier_id: e.target.value }))}
+                  value={formData.product_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, product_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">اختر خطة التسعير</option>
-                  {products.map(product => 
-                    product.pricing_tiers?.map(tier => (
-                      <option key={tier.id} value={tier.id}>
-                        {product.name} - {tier.name} ({tier.price} ريال/شهر)
-                      </option>
-                    ))
-                  )}
+                  <option value="">اختر المنتج</option>
+                  {products.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - {product.price} ريال/شهر
+                    </option>
+                  ))}
                 </select>
               </div>
 
+              {/* Duration and Start Date */}
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">المدة</label>
+                  <select
+                    value={formData.duration_months}
+                    onChange={(e) => setFormData(prev => ({ ...prev, duration_months: parseInt(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="1">شهر واحد</option>
+                    <option value="2">شهران</option>
+                    <option value="3">3 شهور</option>
+                    <option value="4">4 شهور</option>
+                    <option value="6">6 شهور</option>
+                    <option value="12">سنة كاملة</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ البداية</label>
                   <input
@@ -288,26 +343,82 @@ const Subscriptions: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+
+              {/* Discount and Custom Price */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">المدة (شهور)</label>
-                  <select
-                    value={formData.duration_months}
-                    onChange={(e) => setFormData(prev => ({ ...prev, duration_months: parseInt(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="1">شهر واحد</option>
-                    <option value="2">شهران</option>
-                    <option value="3">3 شهور</option>
-                    <option value="6">6 شهور</option>
-                    <option value="12">سنة كاملة</option>
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">نسبة الخصم (%)</label>
+                  <div className="relative">
+                    <Percent className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={formData.discount_percentage}
+                      onChange={(e) => setFormData(prev => ({ ...prev, discount_percentage: parseFloat(e.target.value) || 0 }))}
+                      className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">سعر مخصص (اختياري)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.custom_price}
+                      onChange={(e) => setFormData(prev => ({ ...prev, custom_price: parseFloat(e.target.value) || 0 }))}
+                      className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg">
+              {/* Price Calculation Display */}
+              {formData.product_id && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">ملخص التسعير:</h4>
+                  <div className="space-y-1 text-sm text-blue-800">
+                    <div className="flex justify-between">
+                      <span>السعر الأساسي:</span>
+                      <span>{products.find(p => p.id === formData.product_id)?.price || 0} ريال/شهر</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>المدة:</span>
+                      <span>{formData.duration_months} شهر</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>المجموع قبل الخصم:</span>
+                      <span>{((products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months).toFixed(2)} ريال</span>
+                    </div>
+                    {formData.discount_percentage > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>الخصم ({formData.discount_percentage}%):</span>
+                        <span>-{(((products.find(p => p.id === formData.product_id)?.price || 0) * formData.duration_months * formData.discount_percentage) / 100).toFixed(2)} ريال</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-lg border-t border-blue-200 pt-2">
+                      <span>المجموع النهائي:</span>
+                      <span>{formData.custom_price > 0 ? formData.custom_price.toFixed(2) : calculatePrice().toFixed(2)} ريال</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-yellow-50 p-4 rounded-lg">
                 <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 text-blue-600 ml-2" />
-                  <span className="text-sm text-blue-800">سيتم حساب تاريخ الانتهاء تلقائياً بناءً على المدة المحددة</span>
+                  <AlertCircle className="w-5 h-5 text-yellow-600 ml-2" />
+                  <span className="text-sm text-yellow-800">
+                    {formData.custom_price > 0 
+                      ? 'سيتم استخدام السعر المخصص بدلاً من السعر المحسوب'
+                      : 'سيتم حساب تاريخ الانتهاء تلقائياً بناءً على المدة المحددة'
+                    }
+                  </span>
                 </div>
               </div>
 
@@ -319,9 +430,11 @@ const Subscriptions: React.FC = () => {
                     setEditingSubscription(null);
                     setFormData({
                       customer_id: '',
-                      pricing_tier_id: '',
+                      product_id: '',
+                      duration_months: 1,
                       start_date: new Date().toISOString().split('T')[0],
-                      duration_months: 1
+                      discount_percentage: 0,
+                      custom_price: 0
                     });
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"

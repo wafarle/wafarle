@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package } from 'lucide-react';
+import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package, Eye } from 'lucide-react';
 import { useSubscriptions, useCustomers, useProducts, usePurchases, useInvoices } from '../hooks/useSupabase';
 import { supabase } from '../lib/supabase';
 import { Subscription } from '../types';

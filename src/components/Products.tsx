@@ -281,9 +281,16 @@ const Products: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex space-x-2 space-x-reverse">
-                  <button className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm">
-                    <ShoppingCart className="w-4 h-4 ml-1" />
-                    إضافة للسلة
+                  <button 
+                    onClick={() => {
+                      const linkedPurchase = purchases.find(p => p.product_id === product.id);
+                      const displayPrice = linkedPurchase?.sale_price_per_user || product.price || 0;
+                      alert(`تفاصيل المنتج:\n\nالاسم: ${product.name}\nالوصف: ${product.description}\nالفئة: ${product.category === 'productivity' ? 'إنتاجية' : product.category === 'design' ? 'تصميم' : product.category === 'ai' ? 'ذكاء اصطناعي' : 'ترفيه'}\nالسعر: ${Number(displayPrice).toFixed(2)} ريال\nالحد الأقصى للمستخدمين: ${product.max_users}\nالمستخدمين المتاحين: ${product.available_slots || 0}\nالميزات: ${product.features.filter(f => f).join(', ')}\nشعبي: ${product.is_popular ? 'نعم' : 'لا'}`);
+                    }}
+                    className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm"
+                  >
+                    <Eye className="w-4 h-4 ml-1" />
+                    عرض التفاصيل
                   </button>
                   <button
                     onClick={() => handleEdit(product)}

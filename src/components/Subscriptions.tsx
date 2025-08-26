@@ -342,6 +342,16 @@ const Subscriptions: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2 space-x-reverse">
                       <button
+                        onClick={() => {
+                          const finalPrice = subscription.custom_price || subscription.final_price || subscription.purchase?.sale_price_per_user || subscription.pricing_tier?.price || 0;
+                          alert(`تفاصيل الاشتراك:\n\nالعميل: ${subscription.customer?.name || 'غير محدد'}\nالمنتج: ${subscription.pricing_tier?.product?.name || 'غير محدد'}\nالخطة: ${subscription.pricing_tier?.name || 'غير محدد'}\nالمدة: ${subscription.pricing_tier?.duration_months || 1} شهر\nالسعر النهائي: ${Number(finalPrice).toFixed(2)} ريال\nتاريخ البداية: ${new Date(subscription.start_date).toLocaleDateString('ar-SA')}\nتاريخ الانتهاء: ${new Date(subscription.end_date).toLocaleDateString('ar-SA')}\nالحالة: ${getStatusText(subscription.status)}\nنسبة الخصم: ${subscription.discount_percentage || 0}%`);
+                        }}
+                        className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                        title="عرض تفاصيل الاشتراك"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleEdit(subscription)}
                         className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
                       >

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, MapPin, Loader2, Eye } from 'lucide-react';
 import { useCustomers } from '../hooks/useSupabase';
 import { Customer } from '../types';
 
@@ -107,6 +107,15 @@ const Customers: React.FC = () => {
                 </span>
               </div>
               <div className="flex space-x-2 space-x-reverse">
+                <button
+                  onClick={() => {
+                    alert(`تفاصيل العميل:\n\nالاسم: ${customer.name}\nالبريد الإلكتروني: ${customer.email}\nرقم الهاتف: ${customer.phone}\nالعنوان: ${customer.address}\nتاريخ التسجيل: ${new Date(customer.created_at).toLocaleDateString('ar-SA')}\nآخر تحديث: ${new Date(customer.updated_at).toLocaleDateString('ar-SA')}`);
+                  }}
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="عرض تفاصيل العميل"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => handleEdit(customer)}
                   className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

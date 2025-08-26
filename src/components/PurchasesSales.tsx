@@ -530,7 +530,13 @@ const PurchasesSales: React.FC = () => {
                             <UserPlus className="w-4 h-4" />
                           </button>
                         )}
-                        <button className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded">
+                        <button 
+                          onClick={() => {
+                            alert(`تفاصيل المشتريات:\n\nالخدمة: ${purchase.service_name}\nتفاصيل الحساب: ${purchase.account_details}\nسعر الشراء: ${Number(purchase.purchase_price).toFixed(2)} ريال\nسعر البيع لكل مستخدم: ${Number(purchase.sale_price_per_user).toFixed(2)} ريال\nعدد المستخدمين: ${purchase.current_users}/${purchase.max_users}\nتاريخ الشراء: ${new Date(purchase.purchase_date).toLocaleDateString('ar-SA')}\nالحالة: ${getStatusText(purchase.status)}\nالملاحظات: ${purchase.notes || 'لا توجد ملاحظات'}`);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                          title="عرض تفاصيل المشتريات"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button

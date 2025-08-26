@@ -5,7 +5,7 @@ import { Invoice, Subscription } from '../types';
 
 const Invoices: React.FC = () => {
   const { invoices, loading, error, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
-  const { subscriptions } = useSubscriptions();
+  const { subscriptions, refetch: refetchSubscriptions } = useSubscriptions();
   const { customers } = useCustomers();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -107,6 +107,9 @@ const Invoices: React.FC = () => {
     }
     
     if (result.success) {
+      // تحديث البيانات تلقائياً
+      await refetchSubscriptions();
+      
       setShowAddModal(false);
       setEditingInvoice(null);
       setFormData({

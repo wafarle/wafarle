@@ -433,6 +433,15 @@ ${paypalLink}
                           تم الدفع
                         </button>
                       )}
+                      <button 
+                        onClick={() => {
+                          alert(`تفاصيل الفاتورة:\n\nرقم الفاتورة: #${invoice.id.slice(-8)}\nالعميل: ${invoice.customer?.name || 'غير محدد'}\nالمبلغ: ${Number(invoice.total_amount || invoice.amount).toFixed(2)} ريال\nالحالة: ${getStatusText(invoice.status)}\nتاريخ الإصدار: ${new Date(invoice.issue_date).toLocaleDateString('ar-SA')}\nتاريخ الاستحقاق: ${new Date(invoice.due_date).toLocaleDateString('ar-SA')}`);
+                        }}
+                        className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                        title="عرض تفاصيل الفاتورة"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -508,43 +517,43 @@ ${paypalLink}
                       });
                       
                       return (
-                      <div key={subscription.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`sub-${subscription.id}`}
-                            checked={formData.selected_subscriptions.includes(subscription.id)}
-                            onChange={() => handleSubscriptionToggle(subscription.id)}
-                            disabled={hasInvoice}
-                            className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 ${
-                              hasInvoice ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                          />
-                          <label htmlFor={`sub-${subscription.id}`} className="mr-3 cursor-pointer">
-                            <div className="font-medium text-gray-900">
-                              {subscription.pricing_tier?.product?.name || 'منتج غير محدد'}
-                              {hasInvoice && (
-                                <span className="text-xs text-orange-600 mr-2">(له فاتورة)</span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {subscription.pricing_tier?.name} - 
-                              من {new Date(subscription.start_date).toLocaleDateString('ar-SA')} 
-                              إلى {new Date(subscription.end_date).toLocaleDateString('ar-SA')}
-                            </div>
-                          </label>
-                        </div>
-                        <div className="text-left">
-                          <div className="font-bold text-gray-900">
-                            {Number(subscription.final_price || subscription.pricing_tier?.price || 0).toFixed(2)} ريال
+                        <div key={subscription.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`sub-${subscription.id}`}
+                              checked={formData.selected_subscriptions.includes(subscription.id)}
+                              onChange={() => handleSubscriptionToggle(subscription.id)}
+                              disabled={hasInvoice}
+                              className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 ${
+                                hasInvoice ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            />
+                            <label htmlFor={`sub-${subscription.id}`} className="mr-3 cursor-pointer">
+                              <div className="font-medium text-gray-900">
+                                {subscription.pricing_tier?.product?.name || 'منتج غير محدد'}
+                                {hasInvoice && (
+                                  <span className="text-xs text-orange-600 mr-2">(له فاتورة)</span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {subscription.pricing_tier?.name} - 
+                                من {new Date(subscription.start_date).toLocaleDateString('ar-SA')} 
+                                إلى {new Date(subscription.end_date).toLocaleDateString('ar-SA')}
+                              </div>
+                            </label>
                           </div>
-                          {subscription.discount_percentage > 0 && (
-                            <div className="text-xs text-green-600">
-                              خصم {subscription.discount_percentage}%
+                          <div className="text-left">
+                            <div className="font-bold text-gray-900">
+                              {Number(subscription.final_price || subscription.pricing_tier?.price || 0).toFixed(2)} ريال
                             </div>
-                          )}
+                            {subscription.discount_percentage > 0 && (
+                              <div className="text-xs text-green-600">
+                                خصم {subscription.discount_percentage}%
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
                       );
                     })}
                   </div>

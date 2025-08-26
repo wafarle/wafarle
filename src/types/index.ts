@@ -13,11 +13,11 @@ export interface Product {
   name: string;
   description: string;
   category: string;
+  price: number;
   features: string[];
   icon: string;
   color: string;
   is_popular: boolean;
-  pricing_tiers: PricingTier[];
   created_at: string;
   updated_at: string;
 }

@@ -74,19 +74,19 @@ const Products: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const productData = {
-      ...formData,
-      features: formData.features.filter(f => f.trim() !== '')
-    };
-
-    let result;
-    if (editingProduct) {
-      result = await updateProduct(editingProduct.id, productData);
+    const result = await addProduct(formData);
     } else {
       result = await addProduct(productData);
     }
 
     if (result.success) {
+      // إذا تم اختيار مشتريات، قم بربطها بالمنتج
+      if (selectedPurchase) {
+        await updatePurchase(selectedPurchase.id, { 
+          product_id: result.data.id 
+        });
+      }
+      
       setShowAddModal(false);
       setEditingProduct(null);
       setFormData({

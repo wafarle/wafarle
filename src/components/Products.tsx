@@ -14,14 +14,15 @@ import {
   Paintbrush2,
   Loader2,
   Package,
-  Eye
+  Eye,
+  AlertTriangle
 } from 'lucide-react';
 import { useProducts, usePurchases } from '../hooks/useSupabase';
 import { Product } from '../types';
 
 const Products: React.FC = () => {
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
-  const { purchases, updatePurchase } = usePurchases();
+  const { purchases, updatePurchase, loading: purchasesLoading } = usePurchases();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -69,8 +70,12 @@ const Products: React.FC = () => {
 
   // Get available purchases (active and not linked to any product)
   const availablePurchases = purchases.filter(purchase => 
-    purchase.status === 'active' && !purchase.product_id
+    purchase.status === 'active' && (!purchase.product_id || purchase.product_id === null)
   );
+
+  console.log('Available purchases:', availablePurchases); // للتشخيص
+  console.log('All purchases:', purchases); // للتشخيص
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -388,6 +393,42 @@ const Products: React.FC = () => {
                   <p className="text-xs text-blue-600 mt-2">
                     سيتم ملء بيانات المنتج تلقائياً من المشتريات المحددة
                   </p>
+                </div>
+              )}
+
+              {/* رسالة في حالة عدم وجود مشتريات متاحة */}
+              {!editingProduct && !purchasesLoading && availablePurchases.length === 0 && purchases.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600 ml-2" />
+                    <span className="text-sm text-yellow-800">
+                      جميع المشتريات مربوطة بمنتجات أخرى أو غير نشطة
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* رسالة في حالة عدم وجود مشتريات على الإطلاق */}
+              {!editingProduct && !purchasesLoading && purchases.length === 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <Package className="w-5 h-5 text-blue-600 ml-2" />
+                    <span className="text-sm text-blue-800">
+                      لا توجد مشتريات متاحة. يمكنك إضافة مشتريات من صفحة "المشتريات والمبيعات"
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* رسالة التحميل */}
+              {!editingProduct && purchasesLoading && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-600 ml-2" />
+                    <span className="text-sm text-gray-600">
+                      جاري تحميل المشتريات...
+                    </span>
+                  </div>
                 </div>
               )}
 

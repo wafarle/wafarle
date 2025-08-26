@@ -65,23 +65,36 @@ const Invoices: React.FC = () => {
       return;
     }
 
-    // Create invoice for the first subscription (main one)
-    const mainSubscriptionId = formData.selected_subscriptions[0];
-    const invoiceData = {
-      subscription_id: mainSubscriptionId,
-      customer_id: formData.customer_id,
-      amount: formData.amount,
-      due_date: formData.due_date
-    };
+    // Create invoices for all selected subscriptions
+    const results = [];
+    
+    for (const subscriptionId of formData.selected_subscriptions) {
+      const subscription = subscriptions.find(s => s.id === subscriptionId);
+      const subscriptionAmount = subscription?.final_price || subscription?.pricing_tier?.price || 0;
+      
+      const invoiceData = {
+        subscription_id: subscriptionId,
+        customer_id: formData.customer_id,
+        amount: Number(subscriptionAmount),
+        due_date: formData.due_date
+      };
 
-    let result;
-    if (editingInvoice) {
-      result = await updateInvoice(editingInvoice.id, invoiceData);
-    } else {
-      result = await addInvoice(invoiceData);
+      let result;
+      if (editingInvoice && formData.selected_subscriptions.length === 1) {
+        // Only update if editing and single subscription
+        result = await updateInvoice(editingInvoice.id, invoiceData);
+      } else {
+        // Create new invoice for each subscription
+        result = await addInvoice(invoiceData);
+      }
+      
+      results.push(result);
     }
 
-    if (result.success) {
+    // Check if all invoices were created successfully
+    const allSuccessful = results.every(result => result.success);
+    
+    if (allSuccessful) {
       setShowAddModal(false);
       setEditingInvoice(null);
       setFormData({
@@ -90,6 +103,9 @@ const Invoices: React.FC = () => {
         amount: 0,
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       });
+    } else {
+      const failedCount = results.filter(result => !result.success).length;
+      alert(`فشل في إنشاء ${failedCount} من ${results.length} فواتير`);
     }
   };
 
@@ -518,7 +534,7 @@ ${paypalLink}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    المبلغ الإجمالي (ريال)
+                    المبلغ الإجمالي (ريال) - {formData.selected_subscriptions.length} اشتراك
                   </label>
                   <input
                     type="number"
@@ -533,7 +549,7 @@ ${paypalLink}
                   />
                   {formData.selected_subscriptions.length > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
-                      المبلغ محسوب تلقائياً من الاشتراكات المحددة
+                      سيتم إنشاء فاتورة منفصلة لكل اشتراك بسعره الخاص
                     </p>
                   )}
                 </div>
@@ -570,7 +586,10 @@ ${paypalLink}
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  {editingInvoice ? 'تحديث الفاتورة' : 'إنشاء الفاتورة'}
+                  {editingInvoice ? 'تحديث الفاتورة' : 
+                   formData.selected_subscriptions.length > 1 ? 
+                   `إنشاء ${formData.selected_subscriptions.length} فواتير` : 
+                   'إنشاء الفاتورة'}
                 </button>
               </div>
             </form>

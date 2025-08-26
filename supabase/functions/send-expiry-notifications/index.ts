@@ -104,28 +104,33 @@ const createEmailTemplate = (customerName: string, productName: string, daysLeft
 // إرسال البريد الإلكتروني باستخدام خدمة خارجية (مثل SendGrid أو Resend)
 const sendEmail = async (emailData: EmailData): Promise<boolean> => {
   try {
+    const apiKey = Deno.env.get('RESEND_API_KEY');
+    console.log('API Key exists:', !!apiKey);
+    
+    if (!apiKey) {
+      console.error('RESEND_API_KEY not found in environment variables');
+      return false;
+    }
+
+    const emailPayload = {
+      from: 'Subscription System <onboarding@resend.dev>',
+      to: [emailData.to],
+      subject: emailData.subject,
+      html: emailData.html,
+    };
+    
+    console.log('Sending email to:', emailData.to);
+    console.log('Email payload:', JSON.stringify(emailPayload, null, 2));
+
     // استخدام Resend API لإرسال البريد الإلكتروني
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: 'نظام الاشتراكات <onboarding@resend.dev>',
-        to: [emailData.to],
-        subject: emailData.subject,
-        html: emailData.html,
-      }),
+      body: JSON.stringify(emailPayload),
     });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Resend API Error:', response.status, errorData);
-      return false;
-    }
-
-    return response.ok;
   } catch (error) {
     console.error('Error sending email:', error);
     return false;
@@ -185,7 +190,11 @@ Deno.serve(async (req: Request) => {
 
     // إرسال التنبيهات
     for (const subscription of subscriptions) {
+      console.log('Processing subscription:', subscription.id);
+      console.log('Customer email:', subscription.customer?.email);
+      
       if (!subscription.customer?.email) {
+        console.log('Skipping subscription - no email');
         results.push({
           subscription_id: subscription.id,
           status: 'skipped',
@@ -197,6 +206,9 @@ Deno.serve(async (req: Request) => {
       // حساب الأيام المتبقية
       const endDate = new Date(subscription.end_date);
       const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      console.log('Days left:', daysLeft);
+      console.log('End date:', subscription.end_date);
 
       // إنشاء محتوى البريد الإلكتروني
       const customerName = subscription.customer.name;
@@ -209,8 +221,10 @@ Deno.serve(async (req: Request) => {
         html: createEmailTemplate(customerName, productName, daysLeft, formattedEndDate)
       };
 
+      console.log('Attempting to send email...');
       // إرسال البريد الإلكتروني
       const emailSent = await sendEmail(emailData);
+      console.log('Email sent result:', emailSent);
 
       if (emailSent) {
         emailsSent++;
@@ -239,11 +253,27 @@ Deno.serve(async (req: Request) => {
         message: `تم إرسال ${emailsSent} تنبيه من أصل ${subscriptions.length} اشتراك`,
         sent: emailsSent,
         total: subscriptions.length,
-        results: results
+        results: results,
+        debug: {
+          api_key_exists: !!Deno.env.get('RESEND_API_KEY'),
+          subscriptions_found: subscriptions.length,
+          emails_attempted: results.length
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
+    const responseData = await response.text();
+    console.log('Resend response status:', response.status);
+    console.log('Resend response data:', responseData);
+
+    if (!response.ok) {
+      console.error('Resend API Error:', response.status, responseData);
+      return false;
+    }
+
+    console.log('Email sent successfully to:', emailData.to);
+    return true;
   } catch (error) {
     console.error('Error in send-expiry-notifications:', error);
     return new Response(

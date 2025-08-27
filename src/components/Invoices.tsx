@@ -149,6 +149,8 @@ const Invoices: React.FC = () => {
       const invoiceNumber = invoice.id.slice(-8);
       const amount = Number(invoice.total_amount || invoice.amount);
       
+      console.log('Generating payment link for invoice:', invoiceNumber, 'Amount:', amount);
+      
       const message = await generatePaymentMessage(
         customerName,
         invoiceNumber,
@@ -158,10 +160,38 @@ const Invoices: React.FC = () => {
 
       await navigator.clipboard.writeText(message);
       setCopiedInvoiceId(invoice.id);
+      console.log('Payment message copied to clipboard');
       setTimeout(() => setCopiedInvoiceId(null), 2000);
     } catch (err) {
       console.error('Error generating payment link:', err);
-      alert('حدث خطأ في إنشاء رابط الدفع. يرجى المحاولة مرة أخرى.');
+      
+      // في حالة الخطأ، أنشئ رسالة بسيطة مع معلومات الدفع
+      const customerName = invoice.customer?.name || 'العميل';
+      const invoiceNumber = invoice.id.slice(-8);
+      const amount = Number(invoice.total_amount || invoice.amount);
+      
+      const fallbackMessage = `مرحباً ${customerName}،
+
+نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amount.toFixed(2)} ريال سعودي.
+
+للدفع، يرجى التواصل معنا:
+📧 team@wafarle.com
+📱 +966123456789
+💬 واتساب: +966123456789
+
+شكراً لك على ثقتك بنا.
+
+مع أطيب التحيات،
+فريق wafarle`;
+
+      try {
+        await navigator.clipboard.writeText(fallbackMessage);
+        setCopiedInvoiceId(invoice.id);
+        setTimeout(() => setCopiedInvoiceId(null), 2000);
+        alert('تم نسخ رسالة الدفع (رابط بديل)');
+      } catch (clipboardErr) {
+        alert('حدث خطأ في إنشاء رابط الدفع. يرجى المحاولة مرة أخرى.');
+      }
     } finally {
       setGeneratingPaymentLink(null);
     }

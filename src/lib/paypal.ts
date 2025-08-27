@@ -1,6 +1,6 @@
 // PayPal API Integration
-const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-const PAYPAL_CLIENT_SECRET = import.meta.env.VITE_PAYPAL_CLIENT_SECRET;
+const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'AV3FKMldjC6Yce3b-L3aajkZV6PA1LgnhddWs8X_plO0YTmwUy8nf6zgb82Ejf5p81UBwbMJgpZGExBQ';
+const PAYPAL_CLIENT_SECRET = import.meta.env.VITE_PAYPAL_CLIENT_SECRET || 'EJnEh8mWtlPuweQsOaQNlTW3i0VulGghdR6RNRl2CldUN3s694N9YjttrS9ZQ6nsyv9m6q8wv_QEzZgC';
 const PAYPAL_BASE_URL = 'https://api-m.sandbox.paypal.com'; // للاختبار
 // const PAYPAL_BASE_URL = 'https://api-m.paypal.com'; // للإنتاج
 
@@ -23,6 +23,10 @@ export interface PayPalPaymentLink {
 // الحصول على Access Token
 export const getPayPalAccessToken = async (): Promise<string> => {
   try {
+    console.log('Getting PayPal access token...');
+    console.log('Client ID:', PAYPAL_CLIENT_ID ? 'Present' : 'Missing');
+    console.log('Client Secret:', PAYPAL_CLIENT_SECRET ? 'Present' : 'Missing');
+    
     const auth = btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`);
     
     const response = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
@@ -34,11 +38,16 @@ export const getPayPalAccessToken = async (): Promise<string> => {
       body: 'grant_type=client_credentials'
     });
 
+    console.log('PayPal Auth Response Status:', response.status);
+    
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('PayPal Auth Error Response:', errorText);
       throw new Error(`PayPal Auth Error: ${response.status}`);
     }
 
     const data: PayPalAccessToken = await response.json();
+    console.log('Access token obtained successfully');
     return data.access_token;
   } catch (error) {
     console.error('Error getting PayPal access token:', error);
@@ -54,6 +63,7 @@ export const createPayPalPaymentLink = async (
   invoiceId: string
 ): Promise<string> => {
   try {
+    console.log('Creating PayPal payment link for amount:', amount, currency);
     const accessToken = await getPayPalAccessToken();
     
     const paymentData = {
@@ -70,16 +80,14 @@ export const createPayPalPaymentLink = async (
         brand_name: 'wafarle',
         landing_page: 'BILLING',
         user_action: 'PAY_NOW',
-        payment_method: {
-          payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED',
-          payer_selected: 'PAYPAL'
-        },
+        payment_method: 'paypal',
         shipping_preference: 'NO_SHIPPING',
         return_url: `${window.location.origin}/payment/success`,
         cancel_url: `${window.location.origin}/payment/cancel`
       }
     };
 
+    console.log('Payment data:', JSON.stringify(paymentData, null, 2));
     const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
@@ -89,17 +97,24 @@ export const createPayPalPaymentLink = async (
       body: JSON.stringify(paymentData)
     });
 
+    console.log('PayPal Order Response Status:', response.status);
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('PayPal Order Error Response:', errorText);
       throw new Error(`PayPal Payment Error: ${response.status}`);
     }
 
     const data: PayPalPaymentLink = await response.json();
+    console.log('PayPal Order Response:', data);
+    
     const approvalLink = data.links.find(link => link.rel === 'approve');
     
     if (!approvalLink) {
+      console.error('No approval link found in response:', data);
       throw new Error('No approval link found in PayPal response');
     }
 
+    console.log('Payment link created successfully:', approvalLink.href);
     return approvalLink.href;
   } catch (error) {
     console.error('Error creating PayPal payment link:', error);
@@ -121,7 +136,10 @@ export const generatePaymentMessage = async (
   invoiceId: string
 ): Promise<string> => {
   try {
+    console.log('Generating payment message for:', customerName, invoiceNumber, amountSAR);
     const amountUSD = convertSARToUSD(amountSAR);
+    console.log('Converted amount:', amountSAR, 'SAR to', amountUSD, 'USD');
+    
     const paypalLink = await createPayPalPaymentLink(
       amountUSD,
       'USD',
@@ -149,14 +167,16 @@ ${paypalLink}
 📱 +966123456789`;
   } catch (error) {
     console.error('Error generating payment message:', error);
-    // في حالة فشل PayPal API، استخدم الرابط البديل
-    const fallbackLink = `https://www.paypal.com/ncp/payment/PAYPAL-CHECKOUT-SANDBOX`;
+    
+    // في حالة فشل PayPal API، استخدم رابط بديل مع معلومات الدفع
+    const amountUSD = convertSARToUSD(amountSAR);
+    const fallbackLink = `https://www.paypal.com/paypalme/wafarle/${amountUSD.toFixed(2)}USD`;
     
     return `مرحباً ${customerName}،
 
 نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amountSAR.toFixed(2)} ريال سعودي.
 
-يمكنك الدفع بالفيزا عبر الرابط التالي:
+يمكنك الدفع بالفيزا أو PayPal عبر الرابط التالي:
 ${fallbackLink}
 
 💳 دفع مباشر بالفيزا/ماستركارد

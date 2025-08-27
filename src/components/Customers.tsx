@@ -24,15 +24,6 @@ const Customers: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // التحقق من صحة البيانات قبل الإرسال (اختياري)
-    if (formData.email.trim() && formData.email.trim().length > 0) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email.trim())) {
-        alert('البريد الإلكتروني غير صحيح');
-        return;
-      }
-    }
-
     let result;
     if (editingCustomer) {
       result = await updateCustomer(editingCustomer.id, formData);

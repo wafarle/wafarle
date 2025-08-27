@@ -24,27 +24,13 @@ const Customers: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // التحقق من صحة البيانات قبل الإرسال
-    if (!formData.name.trim() || formData.name.trim().length < 2) {
-      alert('الاسم يجب أن يكون على الأقل حرفين');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      alert('البريد الإلكتروني غير صحيح');
-      return;
-    }
-
-    const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
-    if (!phoneRegex.test(formData.phone.trim())) {
-      alert('رقم الهاتف غير صحيح');
-      return;
-    }
-
-    if (!formData.address.trim() || formData.address.trim().length < 5) {
-      alert('العنوان يجب أن يكون على الأقل 5 أحرف');
-      return;
+    // التحقق من صحة البيانات قبل الإرسال (اختياري)
+    if (formData.email.trim() && formData.email.trim().length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        alert('البريد الإلكتروني غير صحيح');
+        return;
+      }
     }
 
     let result;
@@ -190,7 +176,6 @@ const Customers: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
                 <input
                   type="text"
-                  required
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -201,7 +186,6 @@ const Customers: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
                 <input
                   type="email"
-                  required
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -212,7 +196,6 @@ const Customers: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف</label>
                 <input
                   type="tel"
-                  required
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -222,7 +205,6 @@ const Customers: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">العنوان</label>
                 <textarea
-                  required
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Download, Eye, DollarSign, Calendar, AlertTriangle, Loader2, Edit, Trash2, Link, Copy, Check } from 'lucide-react';
 import { useInvoices, useSubscriptions, useCustomers } from '../hooks/useSupabase';
+import { generatePaymentMessage } from '../lib/paypal';
 import { Invoice, Subscription } from '../types';
 
 const Invoices: React.FC = () => {
@@ -12,6 +13,7 @@ const Invoices: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [copiedInvoiceId, setCopiedInvoiceId] = useState<string | null>(null);
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     customer_id: '',
     selected_subscriptions: [] as string[],
@@ -138,49 +140,30 @@ const Invoices: React.FC = () => {
     }
   };
 
-  // Generate PayPal payment link
-  const generatePayPalLink = (invoice: Invoice) => {
-    const baseUrl = 'https://www.paypal.com/paypalme/wafarle';
-    const amount = Number(invoice.amount).toFixed(2);
-    const currency = 'USD';
-    
-    // PayPal.me link format
-    return `${baseUrl}/${amount}${currency}`;
-  };
-
   // Copy payment link to clipboard
   const copyPaymentLink = async (invoice: Invoice) => {
-    const paypalLink = generatePayPalLink(invoice);
-    const customerName = invoice.customer?.name || 'العميل';
-    const invoiceNumber = invoice.id.slice(-8);
-    const amount = Number(invoice.amount).toFixed(2);
-    
-    const message = `مرحباً ${customerName}،
-
-نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amount} ريال سعودي.
-
-يمكنك الدفع بسهولة عبر الرابط التالي:
-${paypalLink}
-
-شكراً لك على ثقتك بنا.
-
-مع أطيب التحيات،
-فريق الدعم`;
+    setGeneratingPaymentLink(invoice.id);
 
     try {
+      const customerName = invoice.customer?.name || 'العميل';
+      const invoiceNumber = invoice.id.slice(-8);
+      const amount = Number(invoice.total_amount || invoice.amount);
+      
+      const message = await generatePaymentMessage(
+        customerName,
+        invoiceNumber,
+        amount,
+        invoice.id
+      );
+
       await navigator.clipboard.writeText(message);
       setCopiedInvoiceId(invoice.id);
       setTimeout(() => setCopiedInvoiceId(null), 2000);
     } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = message;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopiedInvoiceId(invoice.id);
-      setTimeout(() => setCopiedInvoiceId(null), 2000);
+      console.error('Error generating payment link:', err);
+      alert('حدث خطأ في إنشاء رابط الدفع. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setGeneratingPaymentLink(null);
     }
   };
 
@@ -420,10 +403,13 @@ ${paypalLink}
                       </button>
                       <button
                         onClick={() => copyPaymentLink(invoice)}
+                        disabled={generatingPaymentLink === invoice.id}
                         className="text-purple-600 hover:text-purple-900 p-1 hover:bg-purple-50 rounded transition-colors"
                         title="نسخ رابط الدفع"
                       >
-                        {copiedInvoiceId === invoice.id ? (
+                        {generatingPaymentLink === invoice.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                        ) : copiedInvoiceId === invoice.id ? (
                           <Check className="w-4 h-4 text-green-600" />
                         ) : (
                           <Link className="w-4 h-4" />
@@ -472,13 +458,21 @@ ${paypalLink}
         <div className="flex items-start">
           <Link className="w-5 h-5 text-blue-600 ml-3 mt-0.5" />
           <div>
-            <h4 className="font-medium text-blue-900 mb-2">كيفية استخدام روابط الدفع:</h4>
+            <h4 className="font-medium text-blue-900 mb-2">🔗 روابط الدفع الذكية - PayPal API:</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• اضغط على أيقونة الرابط بجانب الفاتورة لنسخ رسالة الدفع</li>
-              <li>• سيتم نسخ رسالة جاهزة تحتوي على رابط PayPal للدفع</li>
+              <li>• 🔄 <strong>روابط ديناميكية:</strong> يتم إنشاء رابط دفع مخصص لكل فاتورة</li>
+              <li>• 💰 <strong>تحويل تلقائي:</strong> من الريال السعودي إلى الدولار الأمريكي</li>
+              <li>• 🔒 <strong>آمن ومحمي:</strong> عبر PayPal API الرسمي</li>
               <li>• أرسل الرسالة للعميل عبر WhatsApp أو البريد الإلكتروني</li>
-              <li>• تأكد من تحديث اسم المستخدم في PayPal في الكود</li>
+              <li>• 📱 <strong>سهل الاستخدام:</strong> العميل يدفع بضغطة واحدة</li>
+              <li>• 🎯 <strong>تتبع المدفوعات:</strong> كل فاتورة لها رابط فريد</li>
             </ul>
+            <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+              <p className="text-xs text-blue-700">
+                <strong>ملاحظة:</strong> يتم استخدام PayPal Sandbox للاختبار حالياً. 
+                للإنتاج، يجب تغيير الرابط في ملف paypal.ts
+              </p>
+            </div>
           </div>
         </div>
       </div>

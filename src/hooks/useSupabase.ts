@@ -30,21 +30,18 @@ export const useCustomers = () => {
       // تنظيف وتحقق من البيانات
       const sanitizedCustomer = {
         name: customer.name.trim(),
-        email: customer.email.trim().toLowerCase(),
+        email: customer.email ? customer.email.trim().toLowerCase() : '',
         phone: customer.phone.trim(),
         address: customer.address.trim()
       };
 
-      // التحقق من صحة البريد الإلكتروني
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(sanitizedCustomer.email)) {
-        throw new Error('البريد الإلكتروني غير صحيح');
-      }
 
       // التحقق من صحة رقم الهاتف
-      const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
-      if (!phoneRegex.test(sanitizedCustomer.phone)) {
-        throw new Error('رقم الهاتف غير صحيح');
+      if (sanitizedCustomer.phone) {
+        const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
+        if (!phoneRegex.test(sanitizedCustomer.phone)) {
+          throw new Error('رقم الهاتف غير صحيح');
+        }
       }
 
       const { data, error } = await supabase
@@ -71,18 +68,17 @@ export const useCustomers = () => {
       if (updates.name) sanitizedUpdates.name = updates.name.trim();
       if (updates.email) {
         const email = updates.email.trim().toLowerCase();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-          throw new Error('البريد الإلكتروني غير صحيح');
-        }
         sanitizedUpdates.email = email;
       }
       if (updates.phone) {
-        const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
-        if (!phoneRegex.test(updates.phone.trim())) {
-          throw new Error('رقم الهاتف غير صحيح');
+        const phone = updates.phone.trim();
+        if (phone) {
+          const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
+          if (!phoneRegex.test(phone)) {
+            throw new Error('رقم الهاتف غير صحيح');
+          }
         }
-        sanitizedUpdates.phone = updates.phone.trim();
+        sanitizedUpdates.phone = phone;
       }
       if (updates.address) sanitizedUpdates.address = updates.address.trim();
 

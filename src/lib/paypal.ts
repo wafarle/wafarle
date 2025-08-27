@@ -70,6 +70,11 @@ export const createPayPalPaymentLink = async (
         brand_name: 'wafarle',
         landing_page: 'BILLING',
         user_action: 'PAY_NOW',
+        payment_method: {
+          payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED',
+          payer_selected: 'PAYPAL'
+        },
+        shipping_preference: 'NO_SHIPPING',
         return_url: `${window.location.origin}/payment/success`,
         cancel_url: `${window.location.origin}/payment/cancel`
       }
@@ -128,11 +133,13 @@ export const generatePaymentMessage = async (
 
 نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amountSAR.toFixed(2)} ريال سعودي (${amountUSD.toFixed(2)} دولار أمريكي).
 
-يمكنك الدفع بسهولة عبر الرابط التالي:
+يمكنك الدفع بالفيزا أو الماستركارد عبر الرابط التالي:
 ${paypalLink}
 
-🔒 الدفع آمن ومحمي عبر PayPal
-💳 يمكنك الدفع بالبطاقة الائتمانية أو حساب PayPal
+💳 الدفع المباشر بالفيزا/ماستركارد
+🔒 آمن ومحمي 100% عبر PayPal
+⚡ لا تحتاج إنشاء حساب PayPal
+🌍 يقبل جميع البطاقات الائتمانية العالمية
 
 شكراً لك على ثقتك بنا.
 
@@ -143,14 +150,17 @@ ${paypalLink}
   } catch (error) {
     console.error('Error generating payment message:', error);
     // في حالة فشل PayPal API، استخدم الرابط البديل
-    const fallbackLink = `https://www.paypal.com/paypalme/wafarle/${convertSARToUSD(amountSAR).toFixed(2)}USD`;
+    const fallbackLink = `https://www.paypal.com/ncp/payment/PAYPAL-CHECKOUT-SANDBOX`;
     
     return `مرحباً ${customerName}،
 
 نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amountSAR.toFixed(2)} ريال سعودي.
 
-يمكنك الدفع بسهولة عبر الرابط التالي:
+يمكنك الدفع بالفيزا عبر الرابط التالي:
 ${fallbackLink}
+
+💳 دفع مباشر بالفيزا/ماستركارد
+🔒 آمن ومحمي
 
 شكراً لك على ثقتك بنا.
 

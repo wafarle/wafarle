@@ -35,6 +35,28 @@ export const useCustomers = () => {
         address: customer.address.trim()
       };
 
+      // التحقق من تكرار البريد الإلكتروني أو رقم الهاتف
+      if (sanitizedCustomer.email || sanitizedCustomer.phone) {
+        const { data: existingCustomers, error: checkError } = await supabase
+          .from('customers')
+          .select('id, name, email, phone')
+          .or(`email.eq.${sanitizedCustomer.email || 'null'},phone.eq.${sanitizedCustomer.phone || 'null'}`);
+
+        if (checkError) throw checkError;
+
+        if (existingCustomers && existingCustomers.length > 0) {
+          const duplicate = existingCustomers[0];
+          let message = '';
+          
+          if (duplicate.email === sanitizedCustomer.email && sanitizedCustomer.email) {
+            message = `تمت إضافة هذا البريد الإلكتروني من قبل باسم: ${duplicate.name}`;
+          } else if (duplicate.phone === sanitizedCustomer.phone && sanitizedCustomer.phone) {
+            message = `تمت إضافة هذا الرقم من قبل باسم: ${duplicate.name}`;
+          }
+          
+          throw new Error(message);
+        }
+      }
 
       // التحقق من صحة رقم الهاتف
       if (sanitizedCustomer.phone) {
@@ -82,6 +104,33 @@ export const useCustomers = () => {
       }
       if (updates.address) sanitizedUpdates.address = updates.address.trim();
 
+      // التحقق من تكرار البريد الإلكتروني أو رقم الهاتف (باستثناء العميل الحالي)
+      if (sanitizedUpdates.email || sanitizedUpdates.phone) {
+        const conditions = [];
+        if (sanitizedUpdates.email) conditions.push(`email.eq.${sanitizedUpdates.email}`);
+        if (sanitizedUpdates.phone) conditions.push(`phone.eq.${sanitizedUpdates.phone}`);
+        
+        const { data: existingCustomers, error: checkError } = await supabase
+          .from('customers')
+          .select('id, name, email, phone')
+          .or(conditions.join(','))
+          .neq('id', id);
+
+        if (checkError) throw checkError;
+
+        if (existingCustomers && existingCustomers.length > 0) {
+          const duplicate = existingCustomers[0];
+          let message = '';
+          
+          if (duplicate.email === sanitizedUpdates.email && sanitizedUpdates.email) {
+            message = `تمت إضافة هذا البريد الإلكتروني من قبل باسم: ${duplicate.name}`;
+          } else if (duplicate.phone === sanitizedUpdates.phone && sanitizedUpdates.phone) {
+            message = `تمت إضافة هذا الرقم من قبل باسم: ${duplicate.name}`;
+          }
+          
+          throw new Error(message);
+        }
+      }
       const { data, error } = await supabase
         .from('customers')
         .update(sanitizedUpdates)

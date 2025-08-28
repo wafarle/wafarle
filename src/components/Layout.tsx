@@ -11,7 +11,8 @@ import {
   ShoppingBag,
   LogOut,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Code
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -34,6 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'purchases-sales', label: 'المشتريات والمبيعات', icon: ShoppingBag },
     { id: 'profit-loss', label: 'المكاسب والخسائر', icon: TrendingUp },
     { id: 'expiring-subscriptions', label: 'الاشتراكات المنتهية', icon: AlertTriangle },
+    { id: 'api', label: 'API', icon: Code },
   ];
 
   const handleSignOut = async () => {

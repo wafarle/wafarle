@@ -15,7 +15,8 @@ import {
   Loader2,
   Package,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react';
 import { useProducts, usePurchases } from '../hooks/useSupabase';
 import { Product } from '../types';
@@ -27,6 +28,8 @@ const Products: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -76,12 +79,24 @@ const Products: React.FC = () => {
   console.log('Available purchases:', availablePurchases); // للتشخيص
   console.log('All purchases:', purchases); // للتشخيص
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products
+    .filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      // المنتجات المتاحة (available_slots > 0) في الأعلى
+      const aAvailable = (a.available_slots || 0) > 0;
+      const bAvailable = (b.available_slots || 0) > 0;
+      
+      if (aAvailable && !bAvailable) return -1; // a متاح، b مكتمل
+      if (!aAvailable && bAvailable) return 1;  // a مكتمل، b متاح
+      
+      // إذا كان كلاهما متاح أو كلاهما مكتمل، رتب حسب الاسم
+      return a.name.localeCompare(b.name, 'ar');
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,6 +182,52 @@ const Products: React.FC = () => {
     }
   };
 
+  const handleShowDetails = (product: Product) => {
+    setSelectedProduct(product);
+    setShowDetailsModal(true);
+  };
+
+  const exportProductsToExcel = () => {
+    import('xlsx').then((XLSX) => {
+      const productsData = products.map(product => ({
+        'اسم المنتج': product.name,
+        'الوصف': product.description,
+        'الفئة': product.category === 'productivity' ? 'الإنتاجية' : 
+                 product.category === 'design' ? 'التصميم' : 
+                 product.category === 'ai' ? 'الذكاء الاصطناعي' : 
+                 product.category === 'entertainment' ? 'الترفيه' : 'أخرى',
+        'السعر': product.price,
+        'السمات': product.features?.filter(f => f.trim()).join('، ') || 'لا توجد سمات',
+        'الحد الأقصى للمستخدمين': product.max_users,
+        'المواقع المتاحة': product.available_slots,
+        'شعبي': product.is_popular ? 'نعم' : 'لا',
+        'تاريخ الإنشاء': new Date(product.created_at).toLocaleDateString('ar-SA'),
+        'آخر تحديث': new Date(product.updated_at).toLocaleDateString('ar-SA')
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(productsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'المنتجات');
+      
+      // تنسيق الأعمدة
+      const colWidths = [
+        { wch: 25 }, // اسم المنتج
+        { wch: 40 }, // الوصف
+        { wch: 15 }, // الفئة
+        { wch: 12 }, // السعر
+        { wch: 50 }, // السمات
+        { wch: 20 }, // الحد الأقصى للمستخدمين
+        { wch: 18 }, // المواقع المتاحة
+        { wch: 10 }, // شعبي
+        { wch: 15 }, // تاريخ الإنشاء
+        { wch: 15 }  // آخر تحديث
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.writeFile(wb, `المنتجات_${new Date().toLocaleDateString('ar-SA')}.xlsx`);
+    });
+  };
+
   const getIcon = (iconName: string) => {
     const iconMap: { [key: string]: React.ComponentType<any> } = {
       Package, FileText, Palette, MessageSquare, Music, Tv, Paintbrush2
@@ -199,13 +260,22 @@ const Products: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">المنتجات</h1>
           <p className="text-gray-600">إدارة منتجاتك وأسعارها</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-        >
-          <Plus className="w-4 h-4 ml-2" />
-          إضافة منتج جديد
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={exportProductsToExcel}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+          >
+            <Download className="w-4 h-4 ml-2" />
+            تصدير Excel
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <Plus className="w-4 h-4 ml-2" />
+            إضافة منتج جديد
+          </button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -239,17 +309,85 @@ const Products: React.FC = () => {
         </div>
       </div>
 
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg ml-3">
+              <Package className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">إجمالي المنتجات</p>
+              <p className="text-lg font-bold text-gray-900">{products.length}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg ml-3">
+              <div className="w-5 h-5 bg-green-600 rounded-full"></div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">المنتجات المتاحة</p>
+              <p className="text-lg font-bold text-green-600">
+                {products.filter(p => (p.available_slots || 0) > 0).length}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg ml-3">
+              <div className="w-5 h-5 bg-red-600 rounded-full"></div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">المنتجات المكتملة</p>
+              <p className="text-lg font-bold text-red-600">
+                {products.filter(p => (p.available_slots || 0) === 0).length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredProducts.map((product) => {
           const IconComponent = getIcon(product.icon);
           
           return (
-            <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+            <div key={product.id} className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow overflow-hidden ${
+              (product.available_slots || 0) > 0 
+                ? 'border-green-200' 
+                : 'border-red-200'
+            }`}>
               {/* Product Image/Icon */}
               <div className={`bg-gradient-to-r ${product.color} p-6 text-white relative`}>
+                {/* شارة الحالة */}
+                <div className="absolute top-2 left-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center ${
+                    (product.available_slots || 0) > 0
+                      ? 'bg-green-400 text-green-900'
+                      : 'bg-red-400 text-red-900'
+                  }`}>
+                    {(product.available_slots || 0) > 0 ? (
+                      <>
+                        <div className="w-2 h-2 bg-green-600 rounded-full ml-1"></div>
+                        متاح
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 bg-red-600 rounded-full ml-1"></div>
+                        مكتمل
+                      </>
+                    )}
+                  </span>
+                </div>
+                
                 {product.is_popular && (
-                  <div className="absolute top-2 left-2">
+                  <div className="absolute top-2 right-2">
                     <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium flex items-center">
                       <Star className="w-3 h-3 ml-1" />
                       شعبي
@@ -309,11 +447,7 @@ const Products: React.FC = () => {
                 {/* Actions */}
                 <div className="flex space-x-2 space-x-reverse">
                   <button 
-                    onClick={() => {
-                      const linkedPurchase = purchases.find(p => p.product_id === product.id);
-                      const displayPrice = linkedPurchase?.sale_price_per_user || product.price || 0;
-                      alert(`تفاصيل المنتج:\n\nالاسم: ${product.name}\nالوصف: ${product.description}\nالفئة: ${product.category === 'productivity' ? 'إنتاجية' : product.category === 'design' ? 'تصميم' : product.category === 'ai' ? 'ذكاء اصطناعي' : 'ترفيه'}\nالسعر: ${Number(displayPrice).toFixed(2)} ريال\nالحد الأقصى للمستخدمين: ${product.max_users}\nالمستخدمين المتاحين: ${product.available_slots || 0}\nالميزات: ${product.features.filter(f => f).join(', ')}\nشعبي: ${product.is_popular ? 'نعم' : 'لا'}`);
-                    }}
+                    onClick={() => handleShowDetails(product)}
                     className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm"
                   >
                     <Eye className="w-4 h-4 ml-1" />
@@ -599,10 +733,211 @@ const Products: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
+                 </div>
+       )}
+
+       {/* Product Details Modal */}
+       {showDetailsModal && selectedProduct && (
+         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+             {/* Header */}
+             <div className={`bg-gradient-to-r ${selectedProduct.color} text-white p-6 rounded-t-xl relative`}>
+               <div className="flex justify-between items-start">
+                 <div className="flex items-center">
+                   <div className="p-3 bg-white bg-opacity-20 rounded-lg ml-4">
+                     {(() => {
+                       const IconComponent = getIcon(selectedProduct.icon);
+                       return <IconComponent className="w-8 h-8" />;
+                     })()}
+                   </div>
+                   <div>
+                     <h2 className="text-2xl font-bold mb-2">{selectedProduct.name}</h2>
+                     <div className="flex items-center space-x-4 space-x-reverse">
+                       <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">
+                         {selectedProduct.category === 'productivity' ? 'الإنتاجية' :
+                          selectedProduct.category === 'design' ? 'التصميم' :
+                          selectedProduct.category === 'ai' ? 'الذكاء الاصطناعي' : 'الترفيه'}
+                       </span>
+                       {selectedProduct.is_popular && (
+                         <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                           <Star className="w-4 h-4 ml-1" />
+                           شعبي
+                         </span>
+                       )}
+                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                         (selectedProduct.available_slots || 0) > 0
+                           ? 'bg-green-400 text-green-900'
+                           : 'bg-red-400 text-red-900'
+                       }`}>
+                         {(selectedProduct.available_slots || 0) > 0 ? 'متاح' : 'مكتمل'}
+                       </span>
+                     </div>
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => setShowDetailsModal(false)}
+                   className="text-white hover:text-gray-200 transition-colors p-2"
+                 >
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                   </svg>
+                 </button>
+               </div>
+             </div>
+
+             {/* Content */}
+             <div className="p-6 space-y-6">
+               {/* Description */}
+               <div className="bg-gray-50 rounded-lg p-4">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-3">وصف المنتج</h3>
+                 <p className="text-gray-700 leading-relaxed">{selectedProduct.description}</p>
+               </div>
+
+               {/* Features */}
+               <div className="bg-gray-50 rounded-lg p-4">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-3">الميزات</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                   {selectedProduct.features.filter(f => f).map((feature, index) => (
+                     <div key={index} className="flex items-center">
+                       <div className="w-2 h-2 bg-blue-500 rounded-full ml-3"></div>
+                       <span className="text-gray-700">{feature}</span>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+
+               {/* Pricing and Capacity */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* Pricing Information */}
+                 <div className="bg-gray-50 rounded-lg p-4">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3">معلومات التسعير</h3>
+                   <div className="space-y-3">
+                     <div className="flex justify-between items-center">
+                       <span className="text-gray-600">السعر الأساسي:</span>
+                       <span className="text-2xl font-bold text-green-600">
+                         {(() => {
+                           const linkedPurchase = purchases.find(p => p.product_id === selectedProduct.id);
+                           const displayPrice = linkedPurchase?.sale_price_per_user || selectedProduct.price || 0;
+                           return Number(displayPrice).toFixed(2);
+                         })()} ريال
+                       </span>
+                     </div>
+                     {(() => {
+                       const linkedPurchase = purchases.find(p => p.product_id === selectedProduct.id);
+                       if (linkedPurchase) {
+                         return (
+                           <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                             <div className="text-sm text-blue-800">
+                               <div className="font-medium mb-1">مربوط بمشتريات:</div>
+                               <div className="text-xs space-y-1">
+                                 <div>الخدمة: {linkedPurchase.service_name}</div>
+                                 <div>سعر البيع: {Number(linkedPurchase.sale_price_per_user || 0).toFixed(2)} ريال/مستخدم</div>
+                                 <div>التكلفة الأصلية: {Number(linkedPurchase.purchase_price).toFixed(2)} ريال</div>
+                               </div>
+                             </div>
+                           </div>
+                         );
+                       }
+                       return null;
+                     })()}
+                   </div>
+                 </div>
+
+                 {/* Capacity Information */}
+                 <div className="bg-gray-50 rounded-lg p-4">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3">معلومات السعة</h3>
+                   <div className="space-y-3">
+                     <div className="flex justify-between items-center">
+                       <span className="text-gray-600">الحد الأقصى للمستخدمين:</span>
+                       <span className="text-lg font-semibold text-gray-900">{selectedProduct.max_users}</span>
+                     </div>
+                     <div className="flex justify-between items-center">
+                       <span className="text-gray-600">المستخدمين المتاحين:</span>
+                       <span className={`text-lg font-semibold ${
+                         (selectedProduct.available_slots || 0) > 0 ? 'text-green-600' : 'text-red-600'
+                       }`}>
+                         {selectedProduct.available_slots || 0}
+                       </span>
+                     </div>
+                     <div className="flex justify-between items-center">
+                       <span className="text-gray-600">المستخدمين المستخدمين:</span>
+                       <span className="text-lg font-semibold text-gray-900">
+                         {(selectedProduct.max_users || 0) - (selectedProduct.available_slots || 0)}
+                       </span>
+                     </div>
+                     
+                     {/* Progress Bar */}
+                     <div className="mt-3">
+                       <div className="flex justify-between text-xs text-gray-600 mb-1">
+                         <span>معدل الاستخدام</span>
+                         <span>{Math.round(((selectedProduct.max_users || 0) - (selectedProduct.available_slots || 0)) / (selectedProduct.max_users || 1) * 100)}%</span>
+                       </div>
+                       <div className="w-full bg-gray-200 rounded-full h-2">
+                         <div 
+                           className={`h-2 rounded-full transition-all duration-300 ${
+                             (selectedProduct.available_slots || 0) > 0 ? 'bg-green-500' : 'bg-red-500'
+                           }`}
+                           style={{
+                             width: `${Math.min(((selectedProduct.max_users || 0) - (selectedProduct.available_slots || 0)) / (selectedProduct.max_users || 1) * 100, 100)}%`
+                           }}
+                         ></div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Additional Information */}
+               <div className="bg-gray-50 rounded-lg p-4">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-3">معلومات إضافية</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                   <div className="flex items-center">
+                     <span className="text-gray-600 ml-2">الأيقونة:</span>
+                     <span className="font-medium">{(() => {
+                       const iconOption = iconOptions.find(opt => opt.value === selectedProduct.icon);
+                       return iconOption ? iconOption.label : selectedProduct.icon;
+                     })()}</span>
+                   </div>
+                   <div className="flex items-center">
+                     <span className="text-gray-600 ml-2">اللون:</span>
+                     <div className="w-4 h-4 rounded-full ml-2" style={{
+                       background: `linear-gradient(to right, ${selectedProduct.color.split(' ')[1]}, ${selectedProduct.color.split(' ')[3]})`
+                     }}></div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+             {/* Footer */}
+             <div className="bg-gray-50 px-6 py-4 rounded-b-xl border-t border-gray-200">
+               <div className="flex justify-between items-center">
+                 <div className="text-sm text-gray-600">
+                   آخر تحديث: {new Date(selectedProduct.updated_at || selectedProduct.created_at).toLocaleDateString('ar-SA')}
+                 </div>
+                 <div className="flex space-x-3 space-x-reverse">
+                   <button
+                     onClick={() => {
+                       setShowDetailsModal(false);
+                       handleEdit(selectedProduct);
+                     }}
+                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                   >
+                     تعديل المنتج
+                   </button>
+                   <button
+                     onClick={() => setShowDetailsModal(false)}
+                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                   >
+                     إغلاق
+                   </button>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
+ };
 
 export default Products;

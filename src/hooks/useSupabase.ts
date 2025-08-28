@@ -13,7 +13,43 @@ export const useCustomers = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('customers')
-        .select('*')
+        .select(`
+          *,
+          subscriptions (
+            *,
+            pricing_tier:pricing_tiers (
+              *,
+              product:products (
+                name,
+                icon,
+                color
+              )
+            ),
+            purchase:purchases (
+              service_name,
+              purchase_price,
+              max_users
+            )
+          ),
+          invoices (
+            *,
+            subscription:subscriptions (
+              pricing_tier:pricing_tiers (
+                product:products (
+                  name
+                )
+              )
+            )
+          ),
+          sales (
+            *,
+            purchase:purchases (
+              service_name,
+              purchase_price,
+              max_users
+            )
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -927,8 +963,9 @@ export const useProfitLoss = () => {
     totalCosts: 0,
     netProfit: 0,
     profitMargin: 0,
-    revenueByMonth: [] as Array<{ month: string; revenue: number; costs: number; profit: number }>,
-    topProducts: [] as Array<{ product: string; revenue: number; profit: number; sales: number }>
+    revenueByMonth: [] as Array<{ month: string; revenue: number; costs: number; profit: number; invoiceCount: number }>,
+    topProducts: [] as Array<{ product: string; revenue: number; profit: number; sales: number }>,
+    totalInvoices: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1083,12 +1120,42 @@ export const useProfitLoss = () => {
           productData[serviceName].sales += 1;
         }
       });
+      // حساب عدد الفواتير لكل شهر
+      const monthlyInvoiceCount: { [key: string]: number } = {};
+      
+      // حساب عدد الفواتير من الفواتير المدفوعة
+      paidInvoices?.forEach(invoice => {
+        const month = new Date(invoice.paid_date || invoice.issue_date).toLocaleDateString('ar-SA', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+        
+        if (!monthlyInvoiceCount[month]) {
+          monthlyInvoiceCount[month] = 0;
+        }
+        monthlyInvoiceCount[month] += 1;
+      });
+
+      // حساب عدد المبيعات من المبيعات النشطة
+      activeSales?.forEach(sale => {
+        const month = new Date(sale.sale_date).toLocaleDateString('ar-SA', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+        
+        if (!monthlyInvoiceCount[month]) {
+          monthlyInvoiceCount[month] = 0;
+        }
+        monthlyInvoiceCount[month] += 1;
+      });
+
       // تحويل البيانات الشهرية إلى مصفوفة
       const revenueByMonth = Object.entries(monthlyData).map(([month, data]) => ({
         month,
         revenue: data.revenue,
         costs: data.costs,
-        profit: data.revenue - data.costs
+        profit: data.revenue - data.costs,
+        invoiceCount: monthlyInvoiceCount[month] || 0
       })).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
       // تحويل بيانات المنتجات إلى مصفوفة وترتيبها
@@ -1105,13 +1172,17 @@ export const useProfitLoss = () => {
       const netProfit = totalRevenue - totalCosts;
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
+      // حساب إجمالي عدد الفواتير والمبيعات
+      const totalInvoices = (paidInvoices?.length || 0) + (activeSales?.length || 0);
+
       setProfitLossData({
         totalRevenue,
         totalCosts,
         netProfit,
         profitMargin,
         revenueByMonth,
-        topProducts
+        topProducts,
+        totalInvoices
       });
 
     } catch (err) {

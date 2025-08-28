@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package, Eye } from 'lucide-react';
+import { Plus, Search, Calendar, DollarSign, User, AlertCircle, Loader2, Edit, Trash2, Percent, Package, Eye, Download } from 'lucide-react';
 import { useSubscriptions, useCustomers, useProducts, usePurchases, useInvoices } from '../hooks/useSupabase';
 import { supabase } from '../lib/supabase';
 import { Subscription } from '../types';
@@ -14,6 +14,8 @@ const Subscriptions: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -24,11 +26,14 @@ const Subscriptions: React.FC = () => {
     discount_percentage: 0,
     custom_price: 0
   });
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
   const filteredSubscriptions = subscriptions.filter(subscription => {
     const customerName = subscription.customer?.name || '';
+    const customerPhone = subscription.customer?.phone || '';
     const productName = subscription.pricing_tier?.product?.name || '';
     const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customerPhone.includes(searchTerm) ||
                          productName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || subscription.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -185,6 +190,7 @@ const Subscriptions: React.FC = () => {
         discount_percentage: 0,
         custom_price: 0
       });
+      setCustomerSearchTerm('');
     }
   };
 
@@ -210,6 +216,10 @@ const Subscriptions: React.FC = () => {
       discount_percentage: 0,
       custom_price: 0
     });
+    
+    // تعيين اسم العميل في البحث
+    const customer = customers.find(c => c.id === subscription.customer_id);
+    setCustomerSearchTerm(customer?.name || '');
     setShowAddModal(true);
   };
 
@@ -217,6 +227,52 @@ const Subscriptions: React.FC = () => {
     if (window.confirm('هل أنت متأكد من حذف هذا الاشتراك؟')) {
       await deleteSubscription(id);
     }
+  };
+
+  const handleShowDetails = (subscription: Subscription) => {
+    setSelectedSubscription(subscription);
+    setShowDetailsModal(true);
+  };
+
+  const exportSubscriptionsToExcel = () => {
+    import('xlsx').then((XLSX) => {
+      const subscriptionsData = subscriptions.map(subscription => ({
+        'اسم العميل': subscription.customer?.name || 'غير محدد',
+        'رقم الهاتف': subscription.customer?.phone || 'غير محدد',
+        'اسم المنتج': subscription.pricing_tier?.product?.name || 'غير محدد',
+        'المدة (أشهر)': subscription.duration_months,
+        'السعر': subscription.custom_price || subscription.pricing_tier?.price || 0,
+        'نسبة الخصم': subscription.discount_percentage || 0,
+        'السعر النهائي': subscription.custom_price || 
+          ((subscription.pricing_tier?.price || 0) * subscription.duration_months * (1 - (subscription.discount_percentage || 0) / 100)),
+        'تاريخ البداية': new Date(subscription.start_date).toLocaleDateString('ar-SA'),
+        'تاريخ الانتهاء': new Date(subscription.end_date).toLocaleDateString('ar-SA'),
+        'الحالة': getStatusText(subscription.status),
+        'تاريخ الإنشاء': new Date(subscription.created_at).toLocaleDateString('ar-SA')
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(subscriptionsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'الاشتراكات');
+      
+      // تنسيق الأعمدة
+      const colWidths = [
+        { wch: 20 }, // اسم العميل
+        { wch: 15 }, // رقم الهاتف
+        { wch: 20 }, // اسم المنتج
+        { wch: 12 }, // المدة
+        { wch: 15 }, // السعر
+        { wch: 12 }, // نسبة الخصم
+        { wch: 15 }, // السعر النهائي
+        { wch: 15 }, // تاريخ البداية
+        { wch: 15 }, // تاريخ الانتهاء
+        { wch: 12 }, // الحالة
+        { wch: 15 }  // تاريخ الإنشاء
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.writeFile(wb, `الاشتراكات_${new Date().toLocaleDateString('ar-SA')}.xlsx`);
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -267,7 +323,7 @@ const Subscriptions: React.FC = () => {
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="البحث في الاشتراكات..."
+              placeholder="البحث بالاسم أو رقم الهاتف أو المنتج..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -284,13 +340,22 @@ const Subscriptions: React.FC = () => {
             <option value="cancelled">ملغي</option>
           </select>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-        >
-          <Plus className="w-4 h-4 ml-2" />
-          إضافة اشتراك جديد
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={exportSubscriptionsToExcel}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+          >
+            <Download className="w-4 h-4 ml-2" />
+            تصدير Excel
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <Plus className="w-4 h-4 ml-2" />
+            إضافة اشتراك جديد
+          </button>
+        </div>
       </div>
 
       {/* Subscriptions Table */}
@@ -368,10 +433,7 @@ const Subscriptions: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2 space-x-reverse">
                       <button
-                        onClick={() => {
-                          const finalPrice = subscription.custom_price || subscription.final_price || subscription.purchase?.sale_price_per_user || subscription.pricing_tier?.price || 0;
-                          alert(`تفاصيل الاشتراك:\n\nالعميل: ${subscription.customer?.name || 'غير محدد'}\nالمنتج: ${subscription.pricing_tier?.product?.name || 'غير محدد'}\nالخطة: ${subscription.pricing_tier?.name || 'غير محدد'}\nالمدة: ${subscription.pricing_tier?.duration_months || 1} شهر\nالسعر النهائي: ${Number(finalPrice).toFixed(2)} ريال\nتاريخ البداية: ${new Date(subscription.start_date).toLocaleDateString('ar-SA')}\nتاريخ الانتهاء: ${new Date(subscription.end_date).toLocaleDateString('ar-SA')}\nالحالة: ${getStatusText(subscription.status)}\nنسبة الخصم: ${subscription.discount_percentage || 0}%`);
-                        }}
+                        onClick={() => handleShowDetails(subscription)}
                         className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
                         title="عرض تفاصيل الاشتراك"
                       >
@@ -409,6 +471,20 @@ const Subscriptions: React.FC = () => {
               {/* Customer Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
+                
+                {/* Search Input */}
+                <div className="relative mb-2">
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="البحث بالاسم أو رقم الهاتف..."
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                {/* Customer Selection Dropdown */}
                 <select
                   required
                   value={formData.customer_id}
@@ -416,10 +492,29 @@ const Subscriptions: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">اختر العميل</option>
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
+                  {customers
+                    .filter(customer => 
+                      customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+                      customer.phone.includes(customerSearchTerm)
+                    )
+                    .map(customer => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} - {customer.phone}
+                      </option>
+                    ))}
                 </select>
+                
+                {/* Selected Customer Info */}
+                {formData.customer_id && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                    <div className="flex items-center text-sm text-blue-800">
+                      <User className="w-4 h-4 ml-2" />
+                      <span>
+                        العميل المختار: {customers.find(c => c.id === formData.customer_id)?.name}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Product Selection */}
@@ -432,13 +527,24 @@ const Subscriptions: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">اختر المنتج</option>
-                  {products.map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - {Number(product.price || 0).toFixed(2)} ريال/شهر 
-                      ({product.available_slots || 0} متاح)
-                    </option>
-                  ))}
+                  {products
+                    .filter(product => (product.available_slots || 0) > 0)
+                    .map(product => {
+                      const availableSlots = product.available_slots || 0;
+                      
+                      return (
+                        <option 
+                          key={product.id} 
+                          value={product.id}
+                        >
+                          {product.name} - {Number(product.price || 0).toFixed(2)} ريال/شهر 
+                          ({availableSlots} متاح)
+                        </option>
+                      );
+                    })}
                 </select>
+                
+                
               </div>
               
               {/* Purchase Selection (if product has available purchases) */}
@@ -454,14 +560,59 @@ const Subscriptions: React.FC = () => {
                   >
                     <option value="">استخدام السعر العادي</option>
                     {purchases
-                      .filter(p => p.product_id === formData.product_id && p.status === 'active' && p.current_users < p.max_users)
-                      .map(purchase => (
-                        <option key={purchase.id} value={purchase.id}>
-                          {purchase.service_name} - {(Number(purchase.sale_price_per_user) || (Number(purchase.purchase_price) / purchase.max_users)).toFixed(2)} ريال/مستخدم
-                          ({purchase.max_users - purchase.current_users} متاح)
-                        </option>
-                      ))}
+                      .filter(p => p.product_id === formData.product_id && p.status === 'active')
+                      .map(purchase => {
+                        const availableUsers = purchase.max_users - purchase.current_users;
+                        const isAvailable = availableUsers > 0;
+                        const statusText = isAvailable ? `${availableUsers} متاح` : 'مكتمل';
+                        
+                        return (
+                          <option 
+                            key={purchase.id} 
+                            value={purchase.id}
+                            disabled={!isAvailable}
+                            className={isAvailable ? 'text-green-600' : 'text-red-600'}
+                          >
+                            {purchase.service_name} - {(Number(purchase.sale_price_per_user) || (Number(purchase.purchase_price) / purchase.max_users)).toFixed(2)} ريال/مستخدم
+                            ({statusText})
+                          </option>
+                        );
+                      })}
                   </select>
+                  
+                  {/* Purchase Availability Info */}
+                  {formData.purchase_id && (
+                    (() => {
+                      const selectedPurchase = purchases.find(p => p.id === formData.purchase_id);
+                      if (!selectedPurchase) return null;
+                      
+                      const availableUsers = selectedPurchase.max_users - selectedPurchase.current_users;
+                      const isAvailable = availableUsers > 0;
+                      
+                      return (
+                        <div className={`mt-2 p-2 rounded-lg ${
+                          isAvailable ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                        }`}>
+                          <div className={`flex items-center text-sm ${
+                            isAvailable ? 'text-green-800' : 'text-red-800'
+                          }`}>
+                            {isAvailable ? (
+                              <>
+                                <div className="w-2 h-2 bg-green-500 rounded-full ml-2"></div>
+                                <span>متاح: {availableUsers} مستخدم</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-2 h-2 bg-red-500 rounded-full ml-2"></div>
+                                <span>مكتمل: لا يمكن إضافة مستخدمين جدد</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  )}
+                  
                   {formData.purchase_id && (
                     <p className="text-xs text-blue-600 mt-1">
                       سيتم خصم مستخدم من المشتريات المحددة
@@ -640,6 +791,7 @@ const Subscriptions: React.FC = () => {
                       discount_percentage: 0,
                       custom_price: 0
                     });
+                    setCustomerSearchTerm('');
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                 >
@@ -653,6 +805,300 @@ const Subscriptions: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Details Modal */}
+      {showDetailsModal && selectedSubscription && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-xl relative">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center">
+                  <div className="p-3 bg-white bg-opacity-20 rounded-lg ml-4">
+                    <Package className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">تفاصيل الاشتراك</h2>
+                    <div className="flex items-center space-x-4 space-x-reverse">
+                      <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">
+                        {selectedSubscription.pricing_tier?.product?.category === 'productivity' ? 'الإنتاجية' :
+                         selectedSubscription.pricing_tier?.product?.category === 'design' ? 'التصميم' :
+                         selectedSubscription.pricing_tier?.product?.category === 'ai' ? 'الذكاء الاصطناعي' : 'الترفيه'}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        selectedSubscription.status === 'active' ? 'bg-green-400 text-green-900' :
+                        selectedSubscription.status === 'expired' ? 'bg-red-400 text-red-900' :
+                        'bg-gray-400 text-gray-900'
+                      }`}>
+                        {getStatusText(selectedSubscription.status)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="text-white hover:text-gray-200 transition-colors p-2"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Customer Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  <User className="w-5 h-5 ml-2 text-blue-600" />
+                  معلومات العميل
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-gray-600 text-sm">الاسم:</span>
+                    <p className="font-medium text-gray-900">{selectedSubscription.customer?.name || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">رقم الهاتف:</span>
+                    <p className="font-medium text-gray-900">{selectedSubscription.customer?.phone || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">البريد الإلكتروني:</span>
+                    <p className="font-medium text-gray-900">{selectedSubscription.customer?.email || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">العنوان:</span>
+                    <p className="font-medium text-gray-900">{selectedSubscription.customer?.address || 'غير محدد'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  <Package className="w-5 h-5 ml-2 text-green-600" />
+                  معلومات المنتج
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-gray-600 text-sm">اسم المنتج:</span>
+                    <p className="font-medium text-gray-900">{selectedSubscription.pricing_tier?.product?.name || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">الفئة:</span>
+                    <p className="font-medium text-gray-900">
+                      {selectedSubscription.pricing_tier?.product?.category === 'productivity' ? 'الإنتاجية' :
+                       selectedSubscription.pricing_tier?.product?.category === 'design' ? 'التصميم' :
+                       selectedSubscription.pricing_tier?.product?.category === 'ai' ? 'الذكاء الاصطناعي' : 'الترفيه'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">الخطة:</span>
+                    <p className="font-medium text-gray-900">{selectedSubscription.pricing_tier?.name || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">المدة:</span>
+                    <p className="font-medium text-gray-900">
+                      {(() => {
+                        const startDate = new Date(selectedSubscription.start_date);
+                        const endDate = new Date(selectedSubscription.end_date);
+                        const durationMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                              (endDate.getMonth() - startDate.getMonth());
+                        return `${durationMonths} شهر`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  <DollarSign className="w-5 h-5 ml-2 text-green-600" />
+                  معلومات التسعير
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">السعر الأساسي:</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {(() => {
+                        const basePrice = selectedSubscription.purchase?.sale_price_per_user || 
+                                         selectedSubscription.pricing_tier?.price || 0;
+                        return Number(basePrice).toFixed(2);
+                      })()} ريال/شهر
+                    </span>
+                  </div>
+                  {selectedSubscription.discount_percentage > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">نسبة الخصم:</span>
+                      <span className="text-lg font-semibold text-red-600">
+                        {selectedSubscription.discount_percentage}%
+                      </span>
+                    </div>
+                  )}
+                  {selectedSubscription.custom_price > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">السعر المخصص:</span>
+                      <span className="text-lg font-semibold text-blue-600">
+                        {Number(selectedSubscription.custom_price).toFixed(2)} ريال
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center border-t border-gray-200 pt-3">
+                    <span className="text-gray-600 font-medium">السعر النهائي:</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      {(() => {
+                        const finalPrice = selectedSubscription.custom_price || 
+                                          selectedSubscription.final_price || 
+                                          selectedSubscription.purchase?.sale_price_per_user || 
+                                          selectedSubscription.pricing_tier?.price || 0;
+                        return Number(finalPrice).toFixed(2);
+                      })()} ريال
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates and Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Dates Information */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <Calendar className="w-5 h-5 ml-2 text-blue-600" />
+                    التواريخ
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">تاريخ البداية:</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(selectedSubscription.start_date).toLocaleDateString('en-US')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">تاريخ الانتهاء:</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(selectedSubscription.end_date).toLocaleDateString('en-US')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">المدة المتبقية:</span>
+                      <span className={`font-medium ${
+                        new Date(selectedSubscription.end_date) > new Date() ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {(() => {
+                          const endDate = new Date(selectedSubscription.end_date);
+                          const now = new Date();
+                          const diffTime = endDate.getTime() - now.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          
+                          if (diffDays > 0) {
+                            return `${diffDays} يوم متبقي`;
+                          } else if (diffDays === 0) {
+                            return 'ينتهي اليوم';
+                          } else {
+                            return `منتهي منذ ${Math.abs(diffDays)} يوم`;
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Information */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <AlertCircle className="w-5 h-5 ml-2 text-orange-600" />
+                    حالة الاشتراك
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">الحالة:</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        selectedSubscription.status === 'active' ? 'bg-green-100 text-green-800' :
+                        selectedSubscription.status === 'expired' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {getStatusText(selectedSubscription.status)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">تاريخ الإنشاء:</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(selectedSubscription.created_at).toLocaleDateString('en-US')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">آخر تحديث:</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(selectedSubscription.updated_at).toLocaleDateString('en-US')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchase Information (if linked) */}
+              {selectedSubscription.purchase && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <Package className="w-5 h-5 ml-2" />
+                    معلومات المشتريات المرتبطة
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-blue-700">اسم الخدمة:</span>
+                      <p className="font-medium text-blue-900">{selectedSubscription.purchase.service_name}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">سعر البيع/مستخدم:</span>
+                      <p className="font-medium text-blue-900">
+                        {Number(selectedSubscription.purchase.sale_price_per_user || 0).toFixed(2)} ريال
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">التكلفة الأصلية:</span>
+                      <p className="font-medium text-blue-900">
+                        {Number(selectedSubscription.purchase.purchase_price).toFixed(2)} ريال
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">الحد الأقصى للمستخدمين:</span>
+                      <p className="font-medium text-blue-900">{selectedSubscription.purchase.max_users}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-6 py-4 rounded-b-xl border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  معرف الاشتراك: {selectedSubscription.id}
+                </div>
+                <div className="flex space-x-3 space-x-reverse">
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      handleEdit(selectedSubscription);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    تعديل الاشتراك
+                  </button>
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    إغلاق
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -113,9 +113,7 @@ const PurchasesSales: React.FC = () => {
       if (invoice.subscription.purchase && invoice.subscription.purchase.purchase_price && invoice.subscription.purchase.max_users) {
         const costPerUser = Number(invoice.subscription.purchase.purchase_price) / invoice.subscription.purchase.max_users;
         if (!isNaN(costPerUser) && costPerUser > 0) {
-          if (!isNaN(costPerUser) && costPerUser > 0) {
-            totalCostFromInvoices += costPerUser;
-          }
+          totalCostFromInvoices += costPerUser;
         }
       }
     }
@@ -130,9 +128,6 @@ const PurchasesSales: React.FC = () => {
   }, 0);
   
   const totalDirectCost = directSales.reduce((sum, s) => {
-    const saleRevenue = Number(s.sale_price);
-    if (isNaN(saleRevenue) || saleRevenue <= 0) return sum; // تجاهل المبيعات بدون مبلغ صحيح
-    
     if (s.purchase && s.purchase.purchase_price && s.purchase.max_users && s.purchase.max_users > 0) {
       const costPerUser = Number(s.purchase.purchase_price) / s.purchase.max_users;
       if (!isNaN(costPerUser) && costPerUser > 0) {
@@ -148,7 +143,18 @@ const PurchasesSales: React.FC = () => {
   const totalSalesRevenue = totalRevenueFromInvoices + totalDirectRevenue;
   const actualSalesCost = totalCostFromInvoices + totalDirectCost;
   
+  // حساب الربح الصافي
   const totalProfit = totalSalesRevenue - actualSalesCost;
+  
+  // حساب نسبة الربح
+  const profitMargin = totalSalesRevenue > 0 ? (totalProfit / totalSalesRevenue) * 100 : 0;
+  
+  // حساب متوسط التكلفة لكل مستخدم
+  const totalUsersSold = totalSales;
+  const averageCostPerUser = totalUsersSold > 0 ? actualSalesCost / totalUsersSold : 0;
+  
+  // حساب متوسط سعر البيع
+  const averageSalePrice = totalSales > 0 ? totalSalesRevenue / totalSales : 0;
 
   const handlePurchaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,7 +368,7 @@ const PurchasesSales: React.FC = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg ml-3">
@@ -425,6 +431,23 @@ const PurchasesSales: React.FC = () => {
               <p className="text-sm font-medium text-gray-600">صافي الربح</p>
               <p className={`text-lg font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ر.س {totalProfit.toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500">
+                نسبة الربح: {profitMargin.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg ml-3">
+              <Users className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">متوسطات</p>
+              <p className="text-lg font-bold text-gray-900">ر.س {averageSalePrice.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">
+                التكلفة/المستخدم: {averageCostPerUser.toFixed(2)} ريال
               </p>
             </div>
           </div>
@@ -555,7 +578,14 @@ const PurchasesSales: React.FC = () => {
                         )}
                         <button 
                           onClick={() => {
-                            alert(`تفاصيل المشتريات:\n\nالخدمة: ${purchase.service_name}\nتفاصيل الحساب: ${purchase.account_details}\nسعر الشراء: ${Number(purchase.purchase_price).toFixed(2)} ريال\nسعر البيع لكل مستخدم: ${Number(purchase.sale_price_per_user).toFixed(2)} ريال\nعدد المستخدمين: ${purchase.current_users}/${purchase.max_users}\nتاريخ الشراء: ${new Date(purchase.purchase_date).toLocaleDateString('ar-SA')}\nالحالة: ${getStatusText(purchase.status)}\nالملاحظات: ${purchase.notes || 'لا توجد ملاحظات'}`);
+                            const costPerUser = Number(purchase.purchase_price) / purchase.max_users;
+                            const profitPerUser = Number(purchase.sale_price_per_user) - costPerUser;
+                            const profitMargin = Number(purchase.sale_price_per_user) > 0 ? (profitPerUser / Number(purchase.sale_price_per_user)) * 100 : 0;
+                            const totalProfit = profitPerUser * purchase.max_users;
+                            const remainingUsers = purchase.max_users - purchase.current_users;
+                            const potentialProfit = profitPerUser * remainingUsers;
+                            
+                            alert(`تفاصيل المشتريات:\n\nالخدمة: ${purchase.service_name}\nتفاصيل الحساب: ${purchase.account_details}\nسعر الشراء: ${Number(purchase.purchase_price).toFixed(2)} ريال\nسعر البيع لكل مستخدم: ${Number(purchase.sale_price_per_user).toFixed(2)} ريال\nعدد المستخدمين: ${purchase.current_users}/${purchase.max_users}\n\nالحسابات:\nالتكلفة لكل مستخدم: ${costPerUser.toFixed(2)} ريال\nالربح لكل مستخدم: ${profitPerUser.toFixed(2)} ريال\nنسبة الربح: ${profitMargin.toFixed(1)}%\nالربح الإجمالي المحتمل: ${totalProfit.toFixed(2)} ريال\nالربح المتبقي: ${potentialProfit.toFixed(2)} ريال\n\nتاريخ الشراء: ${new Date(purchase.purchase_date).toLocaleDateString('ar-SA')}\nالحالة: ${getStatusText(purchase.status)}\nالملاحظات: ${purchase.notes || 'لا توجد ملاحظات'}`);
                           }}
                           className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
                           title="عرض تفاصيل المشتريات"
@@ -757,13 +787,23 @@ const PurchasesSales: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">الربح المتوقع لكل مستخدم</label>
                   <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50">
                     {purchaseFormData.max_users > 0 && purchaseFormData.purchase_price > 0 ? (
-                      <span className={`font-medium ${
-                        (purchaseFormData.sale_price_per_user - (purchaseFormData.purchase_price / purchaseFormData.max_users)) >= 0 
-                          ? 'text-green-600' 
-                          : 'text-red-600'
-                      }`}>
-                        {(purchaseFormData.sale_price_per_user - (purchaseFormData.purchase_price / purchaseFormData.max_users)).toFixed(2)} ريال
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`font-medium ${
+                          (purchaseFormData.sale_price_per_user - (purchaseFormData.purchase_price / purchaseFormData.max_users)) >= 0 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {(purchaseFormData.sale_price_per_user - (purchaseFormData.purchase_price / purchaseFormData.max_users)).toFixed(2)} ريال
+                        </span>
+                        <div className="text-xs text-gray-500">
+                          التكلفة لكل مستخدم: {(purchaseFormData.purchase_price / purchaseFormData.max_users).toFixed(2)} ريال
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          نسبة الربح: {purchaseFormData.sale_price_per_user > 0 ? 
+                            (((purchaseFormData.sale_price_per_user - (purchaseFormData.purchase_price / purchaseFormData.max_users)) / purchaseFormData.sale_price_per_user) * 100).toFixed(1) 
+                            : 0}%
+                        </div>
+                      </div>
                     ) : (
                       <span className="text-gray-500">0.00 ريال</span>
                     )}
@@ -802,7 +842,6 @@ const PurchasesSales: React.FC = () => {
                       account_details: '',
                       purchase_price: 0,
                       sale_price_per_user: 0,
-                      sale_price_per_user: 0,
                       purchase_date: new Date().toISOString().split('T')[0],
                       max_users: 1,
                       notes: ''
@@ -839,12 +878,30 @@ const PurchasesSales: React.FC = () => {
                   value={saleFormData.purchase_id}
                   onChange={(e) => {
                     const selectedPurchase = purchases.find(p => p.id === e.target.value);
-                    setSaleFormData(prev => ({ 
-                      ...prev, 
-                      purchase_id: e.target.value,
-                      sale_price: selectedPurchase ? 
-                        (Number(selectedPurchase.sale_price_per_user) || Math.round(Number(selectedPurchase.purchase_price) / selectedPurchase.max_users)) : 0
-                    }));
+                    if (selectedPurchase) {
+                      const suggestedPrice = Number(selectedPurchase.sale_price_per_user) || 
+                        Math.round(Number(selectedPurchase.purchase_price) / selectedPurchase.max_users);
+                      const costPerUser = Number(selectedPurchase.purchase_price) / selectedPurchase.max_users;
+                      const profitPerUser = suggestedPrice - costPerUser;
+                      const profitMargin = suggestedPrice > 0 ? (profitPerUser / suggestedPrice) * 100 : 0;
+                      
+                      setSaleFormData(prev => ({ 
+                        ...prev, 
+                        purchase_id: e.target.value,
+                        sale_price: suggestedPrice
+                      }));
+                      
+                      // عرض معلومات الربح المقترح
+                      if (profitPerUser >= 0) {
+                        console.log(`سعر البيع المقترح: ${suggestedPrice} ريال، الربح لكل مستخدم: ${profitPerUser.toFixed(2)} ريال، نسبة الربح: ${profitMargin.toFixed(1)}%`);
+                      }
+                    } else {
+                      setSaleFormData(prev => ({ 
+                        ...prev, 
+                        purchase_id: e.target.value,
+                        sale_price: 0
+                      }));
+                    }
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -895,6 +952,47 @@ const PurchasesSales: React.FC = () => {
                   />
                 </div>
               </div>
+              
+              {/* معلومات الربح المتوقع */}
+              {saleFormData.purchase_id && saleFormData.sale_price > 0 && (() => {
+                const selectedPurchase = purchases.find(p => p.id === saleFormData.purchase_id);
+                if (selectedPurchase) {
+                  const costPerUser = Number(selectedPurchase.purchase_price) / selectedPurchase.max_users;
+                  const profitPerUser = saleFormData.sale_price - costPerUser;
+                  const profitMargin = saleFormData.sale_price > 0 ? (profitPerUser / saleFormData.sale_price) * 100 : 0;
+                  
+                  return (
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                      <h4 className="text-sm font-medium text-blue-700 mb-2">معلومات الربح المتوقع:</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-blue-600">التكلفة لكل مستخدم:</span>
+                          <p className="font-medium">{costPerUser.toFixed(2)} ريال</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600">الربح لكل مستخدم:</span>
+                          <p className={`font-medium ${profitPerUser >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {profitPerUser.toFixed(2)} ريال
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600">نسبة الربح:</span>
+                          <p className={`font-medium ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {profitMargin.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600">الحالة:</span>
+                          <p className={`font-medium ${profitPerUser >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {profitPerUser >= 0 ? 'ربح' : 'خسارة'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">تفاصيل الوصول للعميل</label>
                 <textarea

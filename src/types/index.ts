@@ -6,6 +6,9 @@ export interface Customer {
   address: string;
   created_at: string;
   updated_at: string;
+  subscriptions?: Subscription[];
+  invoices?: Invoice[];
+  sales?: Sale[];
 }
 
 export interface Product {

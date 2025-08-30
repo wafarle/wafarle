@@ -12,6 +12,8 @@ import PurchasesSales from './components/PurchasesSales';
 import ProfitLoss from './components/ProfitLoss';
 import ExpiringSubscriptions from './components/ExpiringSubscriptions';
 import ApiPage from './components/ApiPage';
+import NotificationsPage from './components/NotificationsPage';
+import DailySalesCosts from './components/DailySalesCosts';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -50,6 +52,10 @@ const AppContent: React.FC = () => {
         return <ProfitLoss />;
       case 'expiring-subscriptions':
         return <ExpiringSubscriptions />;
+      case 'notifications':
+        return <NotificationsPage />;
+      case 'daily-sales-costs':
+        return <DailySalesCosts />;
       case 'api':
         return <ApiPage />;
       default:

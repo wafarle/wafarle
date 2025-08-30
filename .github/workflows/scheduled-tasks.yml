@@ -1,0 +1,40 @@
+name: 🕐 Scheduled Tasks
+
+on:
+  schedule:
+    # تشغيل كل ساعة
+    - cron: '0 * * * *'
+  
+  # تشغيل يدوي
+  workflow_dispatch:
+
+jobs:
+  run-scheduled-tasks:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🚀 Run Scheduled Tasks
+        run: |
+          echo "🕐 Running scheduled tasks at $(date)"
+          
+          # تشغيل المهام المجدولة
+          curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5
+          
+          echo "✅ Scheduled tasks completed"
+        
+        env:
+          SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      
+      - name: 📊 Log Result
+        if: always()
+        run: |
+          echo "🕐 Task execution completed at $(date)"
+          echo "📋 Check Supabase logs for detailed results"
+
+

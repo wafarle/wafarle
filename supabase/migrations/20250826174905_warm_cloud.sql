@@ -358,7 +358,7 @@ WHERE c.name = 'فاطمة أحمد' AND p.name = 'Adobe Creative Cloud' AND pt.
 LIMIT 1;
 
 -- إدراج فواتير تجريبية
-INSERT INTO invoices (subscription_id, customer_id, amount, status, issue_date, due_date, paid_date)
+INSERT INTO invoices (subscription_id, customer_id, amount, status, issue_date, due_date)
 SELECT 
   s.id,
   s.customer_id,
@@ -386,3 +386,21 @@ JOIN pricing_tiers pt ON s.pricing_tier_id = pt.id
 JOIN customers c ON s.customer_id = c.id
 WHERE c.name = 'فاطمة أحمد'
 LIMIT 1;
+
+-- إدراج فواتير إضافية لليوم الحالي والأمس
+INSERT INTO invoices (subscription_id, customer_id, amount, status, issue_date, due_date, paid_date, created_at) VALUES
+((SELECT s.id FROM subscriptions s JOIN customers c ON s.customer_id = c.id WHERE c.name = 'أحمد محمد علي' LIMIT 1),
+ (SELECT id FROM customers WHERE name = 'أحمد محمد علي' LIMIT 1),
+ 450.00, 'paid', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', CURRENT_DATE, CURRENT_DATE),
+
+((SELECT s.id FROM subscriptions s JOIN customers c ON s.customer_id = c.id WHERE c.name = 'فاطمة أحمد' LIMIT 1),
+ (SELECT id FROM customers WHERE name = 'فاطمة أحمد' LIMIT 1),
+ 89.00, 'paid', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', CURRENT_DATE, CURRENT_DATE),
+
+((SELECT s.id FROM subscriptions s JOIN customers c ON s.customer_id = c.id WHERE c.name = 'محمد عبدالله' LIMIT 1),
+ (SELECT id FROM customers WHERE name = 'محمد عبدالله' LIMIT 1),
+ 178.00, 'paid', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE + INTERVAL '29 days', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day'),
+
+((SELECT s.id FROM subscriptions s JOIN customers c ON s.customer_id = c.id WHERE c.name = 'نورا سالم' LIMIT 1),
+ (SELECT id FROM customers WHERE name = 'نورا سالم' LIMIT 1),
+ 150.00, 'paid', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE + INTERVAL '29 days', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day');

@@ -8,6 +8,8 @@ const Customers: React.FC = () => {
   const { products } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [subscriptionFilter, setSubscriptionFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -80,6 +82,44 @@ const Customers: React.FC = () => {
     
     return matchesSearch && matchesSubscription;
   });
+
+  // دالة لترتيب العملاء
+  const sortCustomers = (customers: Customer[]) => {
+    return [...customers].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortBy) {
+        case 'subscriptions_count':
+          aValue = a.subscriptions?.length || 0;
+          bValue = b.subscriptions?.length || 0;
+          break;
+        case 'subscription_value':
+          aValue = calculateTotalPayments(a);
+          bValue = calculateTotalPayments(b);
+          break;
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        default:
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  };
+
+  const sortedCustomers = sortCustomers(filteredCustomers);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,6 +244,30 @@ const Customers: React.FC = () => {
             <option value="subscribed">المشتركون فقط</option>
             <option value="not_subscribed">غير المشتركين</option>
           </select>
+          
+          {/* خيارات الترتيب */}
+          <div className="flex items-center gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="created_at">تاريخ الانضمام</option>
+              <option value="name">اسم العميل</option>
+              <option value="subscriptions_count">عدد الاشتراكات</option>
+              <option value="subscription_value">قيمة الاشتراكات</option>
+            </select>
+            
+            <button
+              onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+              className={`p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors ${
+                sortOrder === 'asc' ? 'bg-blue-50 border-blue-300' : 'bg-gray-50'
+              }`}
+              title={sortOrder === 'asc' ? 'ترتيب تصاعدي' : 'ترتيب تنازلي'}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
         </div>
         <div className="flex gap-3">
           <button
@@ -270,12 +334,20 @@ const Customers: React.FC = () => {
       <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>
-            عرض {filteredCustomers.length} من أصل {customers.length} عميل
+            عرض {sortedCustomers.length} من أصل {customers.length} عميل
             {subscriptionFilter !== 'all' && (
               <span className="mr-2">
                 (فلتر: {subscriptionFilter === 'subscribed' ? 'المشتركون فقط' : 'غير المشتركين'})
               </span>
             )}
+            <span className="mr-2">
+              (مرتب حسب: {
+                sortBy === 'created_at' ? 'تاريخ الانضمام' :
+                sortBy === 'name' ? 'اسم العميل' :
+                sortBy === 'subscriptions_count' ? 'عدد الاشتراكات' :
+                sortBy === 'subscription_value' ? 'قيمة الاشتراكات' : 'تاريخ الانضمام'
+              } - {sortOrder === 'asc' ? 'تصاعدي' : 'تنازلي'})
+            </span>
           </span>
           {searchTerm && (
             <span>نتائج البحث عن: "{searchTerm}"</span>
@@ -285,7 +357,7 @@ const Customers: React.FC = () => {
 
       {/* Customers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCustomers.length === 0 ? (
+        {sortedCustomers.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <div className="bg-gray-50 rounded-lg p-8 border border-gray-200">
               <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -319,7 +391,7 @@ const Customers: React.FC = () => {
             </div>
           </div>
         ) : (
-          filteredCustomers.map((customer) => {
+          sortedCustomers.map((customer) => {
           const subscriptionStatus = getSubscriptionStatus(customer);
           const totalPayments = calculateTotalPayments(customer);
           

@@ -144,3 +144,40 @@ CREATE TRIGGER update_purchase_users_count_trigger
   AFTER INSERT OR UPDATE OR DELETE ON sales
   FOR EACH ROW
   EXECUTE FUNCTION update_purchase_users_count();
+
+-- إدراج بيانات تجريبية للمشتريات
+INSERT INTO purchases (service_name, account_details, purchase_price, purchase_date, max_users, current_users, status, notes) VALUES
+('Microsoft Office 365 Business', 'admin@company.com', 450.00, CURRENT_DATE - INTERVAL '30 days', 10, 3, 'active', 'اشتراك سنوي لشركة'),
+('Adobe Creative Cloud', 'design@company.com', 890.00, CURRENT_DATE - INTERVAL '15 days', 5, 2, 'active', 'اشتراك سنوي لفريق التصميم'),
+('ChatGPT Plus', 'ai@company.com', 750.00, CURRENT_DATE - INTERVAL '7 days', 3, 1, 'active', 'اشتراك سنوي لفريق الذكاء الاصطناعي'),
+('Spotify Premium', 'hr@company.com', 199.99, CURRENT_DATE - INTERVAL '45 days', 20, 15, 'active', 'اشتراك سنوي للموظفين'),
+('Netflix Premium', 'entertainment@company.com', 560.00, CURRENT_DATE - INTERVAL '60 days', 8, 6, 'active', 'اشتراك سنوي لقسم الترفيه');
+
+-- إدراج بيانات تجريبية للمبيعات
+INSERT INTO sales (purchase_id, customer_id, sale_price, sale_date, status, access_details) VALUES
+((SELECT id FROM purchases WHERE service_name = 'Microsoft Office 365 Business' LIMIT 1), 
+ (SELECT id FROM customers WHERE name = 'أحمد محمد علي' LIMIT 1), 
+ 89.00, CURRENT_DATE - INTERVAL '25 days', 'active', 'ahmed.ali@company.com'),
+
+((SELECT id FROM purchases WHERE service_name = 'Microsoft Office 365 Business' LIMIT 1), 
+ (SELECT id FROM customers WHERE name = 'فاطمة أحمد' LIMIT 1), 
+ 89.00, CURRENT_DATE - INTERVAL '20 days', 'active', 'fatima.ahmed@company.com'),
+
+((SELECT id FROM purchases WHERE service_name = 'Adobe Creative Cloud' LIMIT 1), 
+ (SELECT id FROM customers WHERE name = 'محمد عبدالله' LIMIT 1), 
+ 178.00, CURRENT_DATE - INTERVAL '10 days', 'active', 'mohammed.abdullah@company.com'),
+
+((SELECT id FROM purchases WHERE service_name = 'ChatGPT Plus' LIMIT 1), 
+ (SELECT id FROM customers WHERE name = 'نورا سالم' LIMIT 1), 
+ 150.00, CURRENT_DATE - INTERVAL '5 days', 'active', 'nora.salem@company.com'),
+
+((SELECT id FROM purchases WHERE service_name = 'Spotify Premium' LIMIT 1), 
+ (SELECT id FROM customers WHERE name = 'خالد الأحمد' LIMIT 1), 
+ 39.99, CURRENT_DATE - INTERVAL '40 days', 'active', 'khalid.ahmed@company.com');
+
+-- إدراج مشتريات إضافية لليوم الحالي والأمس
+INSERT INTO purchases (service_name, account_details, purchase_price, purchase_date, max_users, current_users, status, notes, created_at) VALUES
+('Zoom Pro', 'meetings@company.com', 199.99, CURRENT_DATE, 50, 0, 'active', 'اشتراك شهري لاجتماعات الفيديو', CURRENT_DATE),
+('Slack Premium', 'communication@company.com', 89.99, CURRENT_DATE, 25, 0, 'active', 'اشتراك شهري للتواصل', CURRENT_DATE),
+('Trello Business', 'project@company.com', 149.99, CURRENT_DATE - INTERVAL '1 day', 15, 0, 'active', 'اشتراك شهري لإدارة المشاريع', CURRENT_DATE - INTERVAL '1 day'),
+('Dropbox Business', 'storage@company.com', 299.99, CURRENT_DATE - INTERVAL '1 day', 30, 0, 'active', 'اشتراك شهري للتخزين السحابي', CURRENT_DATE - INTERVAL '1 day');

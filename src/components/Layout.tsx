@@ -12,9 +12,11 @@ import {
   LogOut,
   TrendingUp,
   AlertTriangle,
-  Code
+  Code,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import Notifications from './Notifications';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -34,7 +36,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'purchases-sales', label: 'المشتريات والمبيعات', icon: ShoppingBag },
     { id: 'profit-loss', label: 'المكاسب والخسائر', icon: TrendingUp },
+    { id: 'daily-sales-costs', label: 'المبيعات والتكاليف اليومية', icon: TrendingUp },
     { id: 'expiring-subscriptions', label: 'الاشتراكات المنتهية', icon: AlertTriangle },
+    { id: 'notifications', label: 'الإشعارات', icon: Bell },
     { id: 'api', label: 'API', icon: Code },
   ];
 
@@ -132,6 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
               {menuItems.find(item => item.id === currentPage)?.label || 'لوحة المراقبة'}
             </h1>
             <div className="flex items-center space-x-4 space-x-reverse">
+              <Notifications />
               <span className="text-sm text-gray-600">مرحباً، {user?.email || 'مستخدم'}</span>
               <button
                 onClick={handleSignOut}

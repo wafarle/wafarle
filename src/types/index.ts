@@ -123,3 +123,47 @@ export interface Sale {
   purchase?: Purchase;
   customer?: Customer;
 }
+
+// أنواع البيانات الجديدة للإشعارات
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  category: 'invoice' | 'subscription' | 'customer' | 'system' | 'payment';
+  is_read: boolean;
+  is_important: boolean;
+  action_url?: string;
+  action_text?: string;
+  expires_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationSettings {
+  id: string;
+  user_id: string;
+  email_notifications: boolean;
+  sms_notifications: boolean;
+  push_notifications: boolean;
+  invoice_overdue_days: number;
+  subscription_expiry_days: number;
+  payment_failed: boolean;
+  new_customer: boolean;
+  subscription_renewal: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationTemplate {
+  id: string;
+  name: string;
+  title_template: string;
+  message_template: string;
+  type: 'invoice' | 'subscription' | 'customer' | 'system' | 'payment';
+  variables: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

@@ -85,9 +85,9 @@ export const useCustomers = () => {
           let message = '';
           
           if (duplicate.email === sanitizedCustomer.email && sanitizedCustomer.email) {
-            message = `تمت إضافة هذا البريد الإلكتروني من قبل باسم: ${duplicate.name}`;
+            message = `البريد الإلكتروني "${sanitizedCustomer.email}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`;
           } else if (duplicate.phone === sanitizedCustomer.phone && sanitizedCustomer.phone) {
-            message = `تمت إضافة هذا الرقم من قبل باسم: ${duplicate.name}`;
+            message = `رقم الهاتف "${sanitizedCustomer.phone}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`;
           }
           
           throw new Error(message);
@@ -159,9 +159,9 @@ export const useCustomers = () => {
           let message = '';
           
           if (duplicate.email === sanitizedUpdates.email && sanitizedUpdates.email) {
-            message = `تمت إضافة هذا البريد الإلكتروني من قبل باسم: ${duplicate.name}`;
+            message = `البريد الإلكتروني "${sanitizedUpdates.email}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`;
           } else if (duplicate.phone === sanitizedUpdates.phone && sanitizedUpdates.phone) {
-            message = `تمت إضافة هذا الرقم من قبل باسم: ${duplicate.name}`;
+            message = `رقم الهاتف "${sanitizedUpdates.phone}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`;
           }
           
           throw new Error(message);

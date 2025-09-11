@@ -1289,9 +1289,12 @@ export const useSubscriptionRequests = () => {
             product:products(*)
           )
         `)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('لم يتم العثور على الطلب المحدد');
+      }
       setRequests(prev => prev.map(r => r.id === id ? data : r));
       return { success: true, data };
     } catch (err) {
@@ -1316,9 +1319,12 @@ export const useSubscriptionRequests = () => {
           customer:customers(*),
           pricing_tier:pricing_tiers(*)
         `)
-        .single();
+        .maybeSingle();
 
       if (requestError) throw requestError;
+      if (!request) {
+        throw new Error('لم يتم العثور على الطلب المحدد');
+      }
 
       // حساب تاريخ الانتهاء
       const startDate = new Date(request.preferred_start_date);

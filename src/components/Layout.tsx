@@ -13,7 +13,8 @@ import {
   TrendingUp,
   AlertTriangle,
   Code,
-  Bell
+  Bell,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Notifications from './Notifications';

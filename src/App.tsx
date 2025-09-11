@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthPage from './components/Auth/AuthPage';
+import CustomerAuthPage from './components/Customer/CustomerAuthPage';
+import CustomerLayout from './components/Customer/CustomerLayout';
+import CustomerDashboard from './components/Customer/CustomerDashboard';
+import CustomerSubscriptions from './components/Customer/CustomerSubscriptions';
+import CustomerInvoices from './components/Customer/CustomerInvoices';
+import SubscriptionRequest from './components/Customer/SubscriptionRequest';
+import CustomerProfile from './components/Customer/CustomerProfile';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Products from './components/Products';
@@ -18,6 +25,7 @@ import DailySalesCosts from './components/DailySalesCosts';
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [userType, setUserType] = useState<'admin' | 'customer'>('admin');
 
   if (loading) {
     return (
@@ -31,9 +39,52 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
-    return <AuthPage />;
+    return userType === 'admin' ? (
+      <div>
+        <AuthPage />
+        <div className="fixed bottom-4 right-4">
+          <button
+            onClick={() => setUserType('customer')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-lg"
+          >
+            بوابة العملاء
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div>
+        <CustomerAuthPage />
+        <div className="fixed bottom-4 right-4">
+          <button
+            onClick={() => setUserType('admin')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+          >
+            دخول الإدارة
+          </button>
+        </div>
+      </div>
+    );
   }
 
+  // التحقق من نوع المستخدم (يمكن تحسين هذا لاحقاً)
+  const isAdmin = userType === 'admin';
+
+  const renderCustomerPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <CustomerDashboard onPageChange={setCurrentPage} />;
+      case 'subscriptions':
+        return <CustomerSubscriptions onPageChange={setCurrentPage} />;
+      case 'request-subscription':
+        return <SubscriptionRequest onPageChange={setCurrentPage} />;
+      case 'invoices':
+        return <CustomerInvoices />;
+      case 'profile':
+        return <CustomerProfile />;
+      default:
+        return <CustomerDashboard onPageChange={setCurrentPage} />;
+    }
+  };
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -65,9 +116,41 @@ const AppContent: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-        {renderCurrentPage()}
-      </Layout>
+      {isAdmin ? (
+        <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+          <div className="relative">
+            {renderCurrentPage()}
+            <div className="fixed bottom-4 left-4">
+              <button
+                onClick={() => setUserType('customer')}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-lg flex items-center"
+              >
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+                بوابة العملاء
+              </button>
+            </div>
+          </div>
+        </Layout>
+      ) : (
+        <CustomerLayout currentPage={currentPage} onPageChange={setCurrentPage}>
+          <div className="relative">
+            {renderCustomerPage()}
+            <div className="fixed bottom-4 left-4">
+              <button
+                onClick={() => setUserType('admin')}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center"
+              >
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                لوحة الإدارة
+              </button>
+            </div>
+          </div>
+        </CustomerLayout>
+      )}
     </ErrorBoundary>
   );
 };

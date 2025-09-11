@@ -57,6 +57,7 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onToggleMode }) =
             <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="email"
+              required
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -73,6 +74,7 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onToggleMode }) =
             <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type={showPassword ? 'text' : 'password'}
+              required
               value={formData.password}
               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
               className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -113,18 +115,6 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onToggleMode }) =
           >
             إنشاء حساب جديد
           </button>
-        </p>
-      </div>
-
-      <div className="mt-6 text-center">
-        <p className="text-gray-500 text-sm">
-          هل أنت مدير النظام؟{' '}
-          <a
-            href="/"
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            دخول الإدارة
-          </a>
         </p>
       </div>
     </div>

@@ -10,7 +10,8 @@ import {
   Clock,
   Star,
   Loader2,
-  User
+  User,
+  ShoppingCart
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,7 +23,11 @@ interface CustomerStats {
   expiringSubscriptions: number;
 }
 
-const CustomerDashboard: React.FC = () => {
+interface CustomerDashboardProps {
+  onPageChange: (page: string) => void;
+}
+
+const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ onPageChange }) => {
   const { user } = useAuth();
   const [stats, setStats] = useState<CustomerStats>({
     activeSubscriptions: 0,

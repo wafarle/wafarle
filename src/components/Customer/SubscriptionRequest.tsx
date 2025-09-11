@@ -8,7 +8,8 @@ import {
   CreditCard,
   Users,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ShoppingCart
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,17 +29,11 @@ interface Product {
   pricing_tiers: any[];
 }
 
-interface SubscriptionRequestData {
-  customer_email: string;
-  customer_phone: string;
-  product_id: string;
-  pricing_tier_id: string;
-  preferred_start_date: string;
-  notes: string;
-  status: string;
+interface SubscriptionRequestProps {
+  onPageChange: (page: string) => void;
 }
 
-const SubscriptionRequest: React.FC = () => {
+const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange }) => {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -66,7 +61,7 @@ const SubscriptionRequest: React.FC = () => {
           *,
           pricing_tiers (*)
         `)
-        .gt('available_slots', 0)  // فقط المنتجات المتاحة
+        .gt('available_slots', 0)
         .order('is_popular', { ascending: false });
 
       if (error) throw error;
@@ -113,6 +108,18 @@ const SubscriptionRequest: React.FC = () => {
         .single();
 
       if (customerError && customerError.code !== 'PGRST116') {
+        throw customerError;
+      }
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        
+        // تحديث رقم الهاتف إذا لم يكن موجوداً
+        await supabase
+          .from('customers')
+          .update({ phone: requestData.phone })
+          .eq('id', customerId);
+      } else {
         // إنشاء عميل جديد
         const { data: newCustomer, error: createError } = await supabase
           .from('customers')
@@ -127,14 +134,6 @@ const SubscriptionRequest: React.FC = () => {
 
         if (createError) throw createError;
         customerId = newCustomer.id;
-      } else {
-        customerId = existingCustomer.id;
-        
-        // تحديث رقم الهاتف إذا لم يكن موجوداً
-        await supabase
-          .from('customers')
-          .update({ phone: requestData.phone })
-          .eq('id', customerId);
       }
 
       // حساب تاريخ الانتهاء
@@ -190,10 +189,7 @@ const SubscriptionRequest: React.FC = () => {
   };
 
   const getIcon = (iconName: string) => {
-    const iconMap: { [key: string]: React.ComponentType<any> } = {
-      Package: Package,
-    };
-    return iconMap[iconName] || Package;
+    return Package; // استخدام أيقونة افتراضية
   };
 
   const getCategoryName = (category: string) => {
@@ -299,79 +295,87 @@ const SubscriptionRequest: React.FC = () => {
       {!selectedProduct && (
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-6">الخطوة 1: اختر المنتج</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => {
-              const IconComponent = getIcon(product.icon);
-              
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => handleProductSelect(product)}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-300 transition-all cursor-pointer overflow-hidden group"
-                >
-                  {/* Product Header */}
-                  <div className={`bg-gradient-to-r ${product.color} p-6 text-white relative`}>
-                    {product.is_popular && (
-                      <div className="absolute top-3 left-3">
-                        <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium flex items-center">
-                          <Star className="w-3 h-3 ml-1" />
-                          الأكثر طلباً
-                        </span>
+          {products.length === 0 ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+              <Package className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-yellow-900 mb-2">لا توجد منتجات متاحة</h3>
+              <p className="text-yellow-800">جميع المنتجات مكتملة حالياً. يرجى المحاولة مرة أخرى لاحقاً.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((product) => {
+                const IconComponent = getIcon(product.icon);
+                
+                return (
+                  <div
+                    key={product.id}
+                    onClick={() => handleProductSelect(product)}
+                    className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-300 transition-all cursor-pointer overflow-hidden group"
+                  >
+                    {/* Product Header */}
+                    <div className={`bg-gradient-to-r ${product.color} p-6 text-white relative`}>
+                      {product.is_popular && (
+                        <div className="absolute top-3 left-3">
+                          <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                            <Star className="w-3 h-3 ml-1" />
+                            الأكثر طلباً
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="text-center">
+                        <IconComponent className="w-16 h-16 mx-auto mb-3" />
+                        <h3 className="text-xl font-bold">{product.name}</h3>
+                        <p className="text-sm opacity-90 mt-1">{getCategoryName(product.category)}</p>
                       </div>
-                    )}
-                    
-                    <div className="text-center">
-                      <IconComponent className="w-16 h-16 mx-auto mb-3" />
-                      <h3 className="text-xl font-bold">{product.name}</h3>
-                      <p className="text-sm opacity-90 mt-1">{getCategoryName(product.category)}</p>
+                    </div>
+
+                    {/* Product Details */}
+                    <div className="p-6">
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
+                      
+                      {/* Features */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2">الميزات:</h4>
+                        <ul className="space-y-1">
+                          {product.features.slice(0, 3).map((feature, index) => (
+                            <li key={index} className="text-xs text-gray-600 flex items-center">
+                              <Check className="w-3 h-3 text-green-500 ml-2" />
+                              {feature}
+                            </li>
+                          ))}
+                          {product.features.length > 3 && (
+                            <li className="text-xs text-gray-500">
+                              +{product.features.length - 3} ميزات أخرى
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Availability */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="w-4 h-4 ml-1" />
+                          <span>متاح: {product.available_slots} من {product.max_users}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-green-600 font-bold text-lg">ر.س</span>
+                          <span className="text-2xl font-bold text-gray-900 mr-1">
+                            {Number(product.price || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors group-hover:bg-green-700">
+                        اختيار هذا المنتج
+                      </button>
                     </div>
                   </div>
-
-                  {/* Product Details */}
-                  <div className="p-6">
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
-                    
-                    {/* Features */}
-                    <div className="mb-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-2">الميزات:</h4>
-                      <ul className="space-y-1">
-                        {product.features.slice(0, 3).map((feature, index) => (
-                          <li key={index} className="text-xs text-gray-600 flex items-center">
-                            <Check className="w-3 h-3 text-green-500 ml-2" />
-                            {feature}
-                          </li>
-                        ))}
-                        {product.features.length > 3 && (
-                          <li className="text-xs text-gray-500">
-                            +{product.features.length - 3} ميزات أخرى
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-
-                    {/* Availability */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Users className="w-4 h-4 ml-1" />
-                        <span>متاح: {product.available_slots} من {product.max_users}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-green-600 font-bold text-lg">ر.س</span>
-                        <span className="text-2xl font-bold text-gray-900 mr-1">
-                          {Number(product.price || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors group-hover:bg-green-700">
-                      اختيار هذا المنتج
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { 
-  User, 
-  Package, 
-  FileText, 
+  Users, 
   CreditCard, 
+  FileText, 
   Menu,
   X,
   LogOut,
-  Home,
+  User,
+  Package,
   ShoppingCart,
   Bell,
-  Settings,
+  Home,
   Phone
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';

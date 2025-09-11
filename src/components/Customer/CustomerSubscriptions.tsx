@@ -10,7 +10,8 @@ import {
   RefreshCw,
   Eye,
   Phone,
-  Mail
+  Mail,
+  Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,7 +36,11 @@ interface CustomerSubscription {
   };
 }
 
-const CustomerSubscriptions: React.FC = () => {
+interface CustomerSubscriptionsProps {
+  onPageChange: (page: string) => void;
+}
+
+const CustomerSubscriptions: React.FC<CustomerSubscriptionsProps> = ({ onPageChange }) => {
   const { user } = useAuth();
   const [subscriptions, setSubscriptions] = useState<CustomerSubscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,13 +172,22 @@ const CustomerSubscriptions: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">اشتراكاتي</h1>
           <p className="text-gray-600">عرض وإدارة جميع اشتراكاتك</p>
         </div>
-        <button
-          onClick={fetchSubscriptions}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-        >
-          <RefreshCw className="w-4 h-4 ml-2" />
-          تحديث
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => onPageChange('request-subscription')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+          >
+            <CreditCard className="w-4 h-4 ml-2" />
+            طلب اشتراك جديد
+          </button>
+          <button
+            onClick={fetchSubscriptions}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <RefreshCw className="w-4 h-4 ml-2" />
+            تحديث
+          </button>
+        </div>
       </div>
 
       {/* Statistics */}

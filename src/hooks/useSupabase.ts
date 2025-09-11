@@ -1291,7 +1291,12 @@ export const useSubscriptionRequests = () => {
         `)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
+          throw new Error('لم يتم العثور على الطلب المحدد');
+        }
+        throw error;
+      }
       if (!data) {
         throw new Error('لم يتم العثور على الطلب المحدد');
       }
@@ -1321,7 +1326,12 @@ export const useSubscriptionRequests = () => {
         `)
         .maybeSingle();
 
-      if (requestError) throw requestError;
+      if (requestError) {
+        if (requestError.code === 'PGRST116' && requestError.details === 'The result contains 0 rows') {
+          throw new Error('لم يتم العثور على الطلب المحدد');
+        }
+        throw requestError;
+      }
       if (!request) {
         throw new Error('لم يتم العثور على الطلب المحدد');
       }

@@ -1289,14 +1289,14 @@ export const useSubscriptionRequests = () => {
             product:products(*)
           )
         `)
-        .limit(1);
+        .maybeSingle();
 
       if (error) throw error;
-      if (!data || data.length === 0) {
+      if (!data) {
         throw new Error('لم يتم العثور على الطلب المحدد');
       }
-      setRequests(prev => prev.map(r => r.id === id ? data[0] : r));
-      return { success: true, data: data[0] };
+      setRequests(prev => prev.map(r => r.id === id ? data : r));
+      return { success: true, data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في تحديث الطلب';
       setError(message);
@@ -1319,14 +1319,14 @@ export const useSubscriptionRequests = () => {
           customer:customers(*),
           pricing_tier:pricing_tiers(*)
         `)
-        .limit(1);
+        .maybeSingle();
 
       if (requestError) throw requestError;
-      if (!request || request.length === 0) {
+      if (!request) {
         throw new Error('لم يتم العثور على الطلب المحدد');
       }
 
-      const requestData = request[0];
+      const requestData = request;
 
       // حساب تاريخ الانتهاء
       const startDate = new Date(requestData.preferred_start_date);

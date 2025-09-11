@@ -88,25 +88,37 @@ const SubscriptionRequests: React.FC = () => {
 
   const handleApprove = async (id: string) => {
     setProcessingId(id);
-    const result = await updateRequestStatus(id, 'approved');
-    if (result.success) {
-      alert('تم قبول الطلب بنجاح! يمكنك الآن تفعيله.');
-    } else {
-      alert(result.error);
+    try {
+      const result = await updateRequestStatus(id, 'approved');
+      if (result.success) {
+        alert('تم قبول الطلب بنجاح! يمكنك الآن تفعيله.');
+      } else {
+        alert(result.error || 'حدث خطأ في قبول الطلب');
+      }
+    } catch (error) {
+      console.error('Error in handleApprove:', error);
+      alert('حدث خطأ في قبول الطلب. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setProcessingId(null);
     }
-    setProcessingId(null);
   };
 
   const handleReject = async (id: string) => {
     const reason = prompt('سبب الرفض (اختياري):');
     setProcessingId(id);
-    const result = await updateRequestStatus(id, 'rejected', reason || undefined);
-    if (result.success) {
-      alert('تم رفض الطلب');
-    } else {
-      alert(result.error);
+    try {
+      const result = await updateRequestStatus(id, 'rejected', reason || undefined);
+      if (result.success) {
+        alert('تم رفض الطلب');
+      } else {
+        alert(result.error || 'حدث خطأ في رفض الطلب');
+      }
+    } catch (error) {
+      console.error('Error in handleReject:', error);
+      alert('حدث خطأ في رفض الطلب. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setProcessingId(null);
     }
-    setProcessingId(null);
   };
 
   const handleActivate = (request: any) => {
@@ -128,11 +140,15 @@ const SubscriptionRequests: React.FC = () => {
       
       if (result.success) {
         // تحديث تفاصيل الوصول في المبيعات
-        await supabase
+        const { error: updateError } = await supabase
           .from('sales')
           .update({ access_details: accessDetails })
           .eq('customer_id', selectedRequest.customer_id)
           .eq('purchase_id', selectedPurchase);
+
+        if (updateError) {
+          console.error('Error updating access details:', updateError);
+        }
 
         alert('تم تفعيل الاشتراك وإصدار الفاتورة بنجاح!');
         setShowActivateModal(false);
@@ -140,10 +156,11 @@ const SubscriptionRequests: React.FC = () => {
         setSelectedPurchase('');
         setAccessDetails('');
       } else {
-        alert(result.error);
+        alert(result.error || 'حدث خطأ في التفعيل');
       }
     } catch (error) {
-      alert('حدث خطأ في التفعيل');
+      console.error('Error in handleConfirmActivation:', error);
+      alert('حدث خطأ في التفعيل. يرجى المحاولة مرة أخرى.');
     } finally {
       setProcessingId(null);
     }

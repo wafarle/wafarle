@@ -1269,6 +1269,17 @@ export const useSubscriptionRequests = () => {
     admin_notes?: string
   ) => {
     try {
+      // التحقق من وجود الطلب أولاً
+      const { data: existingRequest, error: checkError } = await supabase
+        .from('subscription_requests')
+        .select('id')
+        .eq('id', id)
+        .single();
+
+      if (checkError || !existingRequest) {
+        throw new Error('لم يتم العثور على الطلب المحدد');
+      }
+
       const updates: any = { 
         status, 
         processed_at: new Date().toISOString() 
@@ -1289,17 +1300,10 @@ export const useSubscriptionRequests = () => {
             product:products(*)
           )
         `)
-        .maybeSingle();
+        .single();
 
-      if (error) {
-        if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
-          throw new Error('لم يتم العثور على الطلب المحدد');
-        }
-        throw error;
-      }
-      if (!data) {
-        throw new Error('لم يتم العثور على الطلب المحدد');
-      }
+      if (error) throw error;
+      
       setRequests(prev => prev.map(r => r.id === id ? data : r));
       return { success: true, data };
     } catch (err) {
@@ -1311,6 +1315,21 @@ export const useSubscriptionRequests = () => {
 
   const activateRequest = async (requestId: string, purchaseId: string) => {
     try {
+      // التحقق من وجود الطلب أولاً
+      const { data: existingRequest, error: checkError } = await supabase
+        .from('subscription_requests')
+        .select(`
+          *,
+          customer:customers(*),
+          pricing_tier:pricing_tiers(*)
+        `)
+        .eq('id', requestId)
+        .single();
+
+      if (checkError || !existingRequest) {
+        throw new Error('لم يتم العثور على الطلب المحدد');
+      }
+
       // تحديث الطلب إلى activated
       const { data: request, error: requestError } = await supabase
         .from('subscription_requests')
@@ -1318,25 +1337,11 @@ export const useSubscriptionRequests = () => {
           status: 'activated',
           processed_at: new Date().toISOString()
         })
-        .eq('id', requestId)
-        .select(`
-          *,
-          customer:customers(*),
-          pricing_tier:pricing_tiers(*)
-        `)
-        .maybeSingle();
+        .eq('id', requestId);
 
-      if (requestError) {
-        if (requestError.code === 'PGRST116' && requestError.details === 'The result contains 0 rows') {
-          throw new Error('لم يتم العثور على الطلب المحدد');
-        }
-        throw requestError;
-      }
-      if (!request) {
-        throw new Error('لم يتم العثور على الطلب المحدد');
-      }
+      if (requestError) throw requestError;
 
-      const requestData = request;
+      const requestData = existingRequest;
 
       // حساب تاريخ الانتهاء
       const startDate = new Date(requestData.preferred_start_date);

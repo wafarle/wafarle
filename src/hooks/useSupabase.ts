@@ -1289,14 +1289,14 @@ export const useSubscriptionRequests = () => {
             product:products(*)
           )
         `)
-        .maybeSingle();
+        .limit(1);
 
       if (error) throw error;
-      if (!data) {
+      if (!data || data.length === 0) {
         throw new Error('لم يتم العثور على الطلب المحدد');
       }
-      setRequests(prev => prev.map(r => r.id === id ? data : r));
-      return { success: true, data };
+      setRequests(prev => prev.map(r => r.id === id ? data[0] : r));
+      return { success: true, data: data[0] };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في تحديث الطلب';
       setError(message);
@@ -1319,29 +1319,31 @@ export const useSubscriptionRequests = () => {
           customer:customers(*),
           pricing_tier:pricing_tiers(*)
         `)
-        .maybeSingle();
+        .limit(1);
 
       if (requestError) throw requestError;
-      if (!request) {
+      if (!request || request.length === 0) {
         throw new Error('لم يتم العثور على الطلب المحدد');
       }
 
+      const requestData = request[0];
+
       // حساب تاريخ الانتهاء
-      const startDate = new Date(request.preferred_start_date);
+      const startDate = new Date(requestData.preferred_start_date);
       const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + request.pricing_tier.duration_months);
+      endDate.setMonth(endDate.getMonth() + requestData.pricing_tier.duration_months);
 
       // إنشاء الاشتراك
       const { data: subscription, error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([{
-          customer_id: request.customer_id,
-          pricing_tier_id: request.pricing_tier_id,
+          customer_id: requestData.customer_id,
+          pricing_tier_id: requestData.pricing_tier_id,
           purchase_id: purchaseId,
-          start_date: request.preferred_start_date,
+          start_date: requestData.preferred_start_date,
           end_date: endDate.toISOString().split('T')[0],
           status: 'active',
-          final_price: request.pricing_tier.price
+          final_price: requestData.pricing_tier.price
         }])
         .select()
         .single();
@@ -1355,10 +1357,10 @@ export const useSubscriptionRequests = () => {
       const { error: invoiceError } = await supabase
         .from('invoices')
         .insert([{
-          customer_id: request.customer_id,
+          customer_id: requestData.customer_id,
           subscription_id: subscription.id,
-          amount: request.pricing_tier.price,
-          total_amount: request.pricing_tier.price,
+          amount: requestData.pricing_tier.price,
+          total_amount: requestData.pricing_tier.price,
           status: 'pending',
           due_date: dueDate.toISOString().split('T')[0]
         }]);
@@ -1370,8 +1372,8 @@ export const useSubscriptionRequests = () => {
         .from('sales')
         .insert([{
           purchase_id: purchaseId,
-          customer_id: request.customer_id,
-          sale_price: request.pricing_tier.price,
+          customer_id: requestData.customer_id,
+          sale_price: requestData.pricing_tier.price,
           status: 'active',
           access_details: 'سيتم إرسال تفاصيل الوصول قريباً'
         }]);
@@ -1379,7 +1381,7 @@ export const useSubscriptionRequests = () => {
       if (saleError) throw saleError;
 
       setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'activated' } : r));
-      return { success: true, data: { subscription, request } };
+      return { success: true, data: { subscription, request: requestData } };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في تفعيل الطلب';
       setError(message);

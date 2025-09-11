@@ -167,3 +167,19 @@ export interface NotificationTemplate {
   created_at: string;
   updated_at: string;
 }
+
+export interface SubscriptionRequest {
+  id: string;
+  customer_id: string;
+  pricing_tier_id: string;
+  status: 'pending' | 'approved' | 'activated' | 'rejected';
+  preferred_start_date: string;
+  notes?: string;
+  admin_notes?: string;
+  processed_by?: string;
+  processed_at?: string;
+  created_at: string;
+  updated_at: string;
+  customer?: Customer;
+  pricing_tier?: PricingTier;
+}

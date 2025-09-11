@@ -21,6 +21,7 @@ import ExpiringSubscriptions from './components/ExpiringSubscriptions';
 import ApiPage from './components/ApiPage';
 import NotificationsPage from './components/NotificationsPage';
 import DailySalesCosts from './components/DailySalesCosts';
+import SubscriptionRequests from './components/SubscriptionRequests';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -95,6 +96,8 @@ const AppContent: React.FC = () => {
         return <Customers />;
       case 'subscriptions':
         return <Subscriptions />;
+      case 'subscription-requests':
+        return <SubscriptionRequests />;
       case 'invoices':
         return <Invoices />;
       case 'purchases-sales':

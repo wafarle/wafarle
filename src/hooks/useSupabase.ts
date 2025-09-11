@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Customer, Product, PricingTier, Subscription, Invoice, Purchase, Sale } from '../types';
+import { SubscriptionRequest } from '../types';
 
 // Hook للعملاء
 export const useCustomers = () => {
@@ -1201,5 +1202,196 @@ export const useProfitLoss = () => {
     loading,
     error,
     refetch: calculateProfitLoss
+  };
+};
+
+// Hook لطلبات الاشتراكات
+export const useSubscriptionRequests = () => {
+  const [requests, setRequests] = useState<SubscriptionRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('subscription_requests')
+        .select(`
+          *,
+          customer:customers(*),
+          pricing_tier:pricing_tiers(*,
+            product:products(*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل الطلبات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addRequest = async (request: {
+    customer_id: string;
+    pricing_tier_id: string;
+    preferred_start_date: string;
+    notes?: string;
+  }) => {
+    try {
+      const { data, error } = await supabase
+        .from('subscription_requests')
+        .insert([request])
+        .select(`
+          *,
+          customer:customers(*),
+          pricing_tier:pricing_tiers(*,
+            product:products(*)
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+      setRequests(prev => [data, ...prev]);
+      return { success: true, data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في إضافة الطلب';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const updateRequestStatus = async (
+    id: string, 
+    status: 'pending' | 'approved' | 'activated' | 'rejected',
+    admin_notes?: string
+  ) => {
+    try {
+      const updates: any = { 
+        status, 
+        processed_at: new Date().toISOString() 
+      };
+      
+      if (admin_notes) {
+        updates.admin_notes = admin_notes;
+      }
+
+      const { data, error } = await supabase
+        .from('subscription_requests')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          customer:customers(*),
+          pricing_tier:pricing_tiers(*,
+            product:products(*)
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+      setRequests(prev => prev.map(r => r.id === id ? data : r));
+      return { success: true, data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في تحديث الطلب';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const activateRequest = async (requestId: string, purchaseId: string) => {
+    try {
+      // تحديث الطلب إلى activated
+      const { data: request, error: requestError } = await supabase
+        .from('subscription_requests')
+        .update({ 
+          status: 'activated',
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+        .select(`
+          *,
+          customer:customers(*),
+          pricing_tier:pricing_tiers(*)
+        `)
+        .single();
+
+      if (requestError) throw requestError;
+
+      // حساب تاريخ الانتهاء
+      const startDate = new Date(request.preferred_start_date);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + request.pricing_tier.duration_months);
+
+      // إنشاء الاشتراك
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert([{
+          customer_id: request.customer_id,
+          pricing_tier_id: request.pricing_tier_id,
+          purchase_id: purchaseId,
+          start_date: request.preferred_start_date,
+          end_date: endDate.toISOString().split('T')[0],
+          status: 'active',
+          final_price: request.pricing_tier.price
+        }])
+        .select()
+        .single();
+
+      if (subscriptionError) throw subscriptionError;
+
+      // إنشاء فاتورة
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 7);
+
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .insert([{
+          customer_id: request.customer_id,
+          subscription_id: subscription.id,
+          amount: request.pricing_tier.price,
+          total_amount: request.pricing_tier.price,
+          status: 'pending',
+          due_date: dueDate.toISOString().split('T')[0]
+        }]);
+
+      if (invoiceError) throw invoiceError;
+
+      // إنشاء سجل مبيعات
+      const { error: saleError } = await supabase
+        .from('sales')
+        .insert([{
+          purchase_id: purchaseId,
+          customer_id: request.customer_id,
+          sale_price: request.pricing_tier.price,
+          status: 'active',
+          access_details: 'سيتم إرسال تفاصيل الوصول قريباً'
+        }]);
+
+      if (saleError) throw saleError;
+
+      setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'activated' } : r));
+      return { success: true, data: { subscription, request } };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ في تفعيل الطلب';
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  return {
+    requests,
+    loading,
+    error,
+    addRequest,
+    updateRequestStatus,
+    activateRequest,
+    refetch: fetchRequests
   };
 };

@@ -33,6 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'products', label: 'المنتجات', icon: Package },
     { id: 'customers', label: 'العملاء', icon: Users },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCard },
+    { id: 'subscription-requests', label: 'طلبات الاشتراكات', icon: Clock },
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'purchases-sales', label: 'المشتريات والمبيعات', icon: ShoppingBag },
     { id: 'profit-loss', label: 'المكاسب والخسائر', icon: TrendingUp },

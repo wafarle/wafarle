@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscriptionRequests } from '../../hooks/useSupabase';
 
 interface Product {
   id: string;
@@ -35,6 +36,7 @@ interface SubscriptionRequestProps {
 
 const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange }) => {
   const { user } = useAuth();
+  const { addRequest } = useSubscriptionRequests();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedTier, setSelectedTier] = useState<any>(null);
@@ -136,48 +138,20 @@ const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange 
         customerId = newCustomer.id;
       }
 
-      // حساب تاريخ الانتهاء
-      const startDate = new Date(requestData.preferred_start_date);
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + selectedTier.duration_months);
-
-      // إنشاء الاشتراك
-      const { data: subscription, error: subscriptionError } = await supabase
-        .from('subscriptions')
+      // إنشاء طلب الاشتراك (ليس اشتراك فعلي)
+      const { data: request, error: requestError } = await supabase
+        .from('subscription_requests')
         .insert([{
           customer_id: customerId,
           pricing_tier_id: selectedTier.id,
-          start_date: requestData.preferred_start_date,
-          end_date: endDate.toISOString().split('T')[0],
-          status: 'active',
-          final_price: selectedTier.price,
-          discount_percentage: selectedTier.discount_percentage || 0
+          preferred_start_date: requestData.preferred_start_date,
+          notes: requestData.notes || '',
+          status: 'pending'
         }])
         .select()
         .single();
 
-      if (subscriptionError) throw subscriptionError;
-
-      // إنشاء فاتورة للاشتراك
-      const dueDate = new Date(startDate);
-      dueDate.setDate(dueDate.getDate() + 7); // استحقاق بعد أسبوع
-
-      const { error: invoiceError } = await supabase
-        .from('invoices')
-        .insert([{
-          customer_id: customerId,
-          subscription_id: subscription.id,
-          amount: selectedTier.price,
-          total_amount: selectedTier.price,
-          status: 'pending',
-          issue_date: new Date().toISOString().split('T')[0],
-          due_date: dueDate.toISOString().split('T')[0]
-        }]);
-
-      if (invoiceError) {
-        console.error('Error creating invoice:', invoiceError);
-        // لا نوقف العملية إذا فشلت الفاتورة
-      }
+      if (requestError) throw requestError;
 
       setSuccess(true);
     } catch (err) {
@@ -211,7 +185,7 @@ const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange 
           </div>
           <h2 className="text-2xl font-bold text-green-900 mb-4">تم إرسال طلبك بنجاح!</h2>
           <p className="text-green-800 mb-6">
-            تم إنشاء اشتراكك في {selectedProduct?.name} بنجاح. سيتم التواصل معك قريباً لتفعيل الخدمة.
+            تم إرسال طلبك للاشتراك في {selectedProduct?.name} بنجاح. سيتم التواصل معك قريباً لتأكيد الطلب وتفعيل الخدمة.
           </p>
           <div className="bg-white p-4 rounded-lg border border-green-200 mb-6">
             <h3 className="font-semibold text-green-900 mb-2">تفاصيل الطلب:</h3>
@@ -221,7 +195,17 @@ const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange 
               <p><strong>السعر:</strong> ر.س {selectedTier?.price}</p>
               <p><strong>المدة:</strong> {selectedTier?.duration_months} شهر</p>
               <p><strong>تاريخ البداية:</strong> {new Date(requestData.preferred_start_date).toLocaleDateString('ar-SA')}</p>
+              <p><strong>حالة الطلب:</strong> في انتظار الموافقة</p>
             </div>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+            <h3 className="font-semibold text-blue-900 mb-2">الخطوات التالية:</h3>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• سيتم مراجعة طلبك خلال 24 ساعة</li>
+              <li>• ستتلقى اتصال أو رسالة للتأكيد</li>
+              <li>• بعد الموافقة سيتم تفعيل الخدمة</li>
+              <li>• ستحصل على فاتورة للدفع</li>
+            </ul>
           </div>
           <div className="flex gap-3 justify-center">
             <button

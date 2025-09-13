@@ -170,18 +170,18 @@ ${window.location.origin}
         setProcessing(customer.id);
         
         // تنظيف وتوحيد رقم الهاتف
-        const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
-        let normalizedPhone = cleanPhone;
+        const customerPhone = customer.phone.replace(/[^0-9+]/g, '');
+        let normalizedPhone = customerPhone;
         
         // تحويل إلى التنسيق الموحد
-        if (cleanPhone.startsWith('05')) {
-          normalizedPhone = '+966' + cleanPhone.substring(1);
-        } else if (cleanPhone.startsWith('5')) {
-          normalizedPhone = '+966' + cleanPhone;
-        } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
-          normalizedPhone = '+' + cleanPhone;
-        } else if (cleanPhone.startsWith('+966')) {
-          normalizedPhone = cleanPhone;
+        if (customerPhone.startsWith('05')) {
+          normalizedPhone = '+966' + customerPhone.substring(1);
+        } else if (customerPhone.startsWith('5')) {
+          normalizedPhone = '+966' + customerPhone;
+        } else if (customerPhone.startsWith('966') && !customerPhone.startsWith('+')) {
+          normalizedPhone = '+' + customerPhone;
+        } else if (customerPhone.startsWith('+966')) {
+          normalizedPhone = customerPhone;
         }
         
         // إنشاء حساب المصادقة

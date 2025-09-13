@@ -1,8 +1,9 @@
 // PayPal API Integration
 const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'AUfS4VYq_LdTbHZvGmCtRumhpzRjsmkMX760IKrHoISf87UhgLND-UAA7aswSDXCDwXxFv0KqisHEpXc';
 const PAYPAL_CLIENT_SECRET = import.meta.env.VITE_PAYPAL_CLIENT_SECRET || 'EFHZVuSn8Wy457NdjmqsaaDSMujhgsMekdFnQ_g2p-BwdOAEgov_DCebCJ9pD5K6GgcY1mrQUFOH6Gdb';
-const PAYPAL_BASE_URL = 'https://api-m.sandbox.paypal.com'; // للاختبار
-// const PAYPAL_BASE_URL = 'https://api-m.paypal.com'; // للإنتاج
+// استخدام production environment بدلاً من sandbox
+const PAYPAL_BASE_URL = 'https://api-m.paypal.com'; // للإنتاج
+// const PAYPAL_BASE_URL = 'https://api-m.sandbox.paypal.com'; // للاختبار
 
 export interface PayPalAccessToken {
   access_token: string;
@@ -23,17 +24,23 @@ export interface PayPalPaymentLink {
 // الحصول على Access Token
 export const getPayPalAccessToken = async (): Promise<string> => {
   try {
-    console.log('Getting PayPal access token...');
-    console.log('Client ID:', PAYPAL_CLIENT_ID ? 'Present' : 'Missing');
-    console.log('Client Secret:', PAYPAL_CLIENT_SECRET ? 'Present' : 'Missing');
+    console.log('Getting PayPal access token from:', PAYPAL_BASE_URL);
+    
+    // التحقق من وجود بيانات الاعتماد
+    if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+      throw new Error('PayPal credentials are missing');
+    }
     
     const auth = btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`);
+    console.log('Auth header created, length:', auth.length);
     
     const response = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'Accept-Language': 'en_US',
       },
       body: 'grant_type=client_credentials'
     });
@@ -43,7 +50,15 @@ export const getPayPalAccessToken = async (): Promise<string> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('PayPal Auth Error Response:', errorText);
-      throw new Error(`PayPal Auth Error: ${response.status}`);
+      
+      // معالجة أخطاء محددة
+      if (response.status === 401) {
+        throw new Error('بيانات PayPal غير صحيحة. يرجى التحقق من Client ID و Client Secret');
+      } else if (response.status === 403) {
+        throw new Error('حسابك PayPal غير مخول لهذه العملية');
+      } else {
+        throw new Error(`خطأ في PayPal: ${response.status} - ${errorText}`);
+      }
     }
 
     const data: PayPalAccessToken = await response.json();
@@ -51,7 +66,7 @@ export const getPayPalAccessToken = async (): Promise<string> => {
     return data.access_token;
   } catch (error) {
     console.error('Error getting PayPal access token:', error);
-    throw error;
+    throw new Error(`فشل في الاتصال بـ PayPal: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
   }
 };
 
@@ -64,6 +79,12 @@ export const createPayPalPaymentLink = async (
 ): Promise<string> => {
   try {
     console.log('Creating PayPal payment link for amount:', amount, currency);
+    
+    // التحقق من صحة المبلغ
+    if (amount <= 0) {
+      throw new Error('مبلغ الدفع يجب أن يكون أكبر من صفر');
+    }
+    
     const accessToken = await getPayPalAccessToken();
     
     const paymentData = {
@@ -80,7 +101,6 @@ export const createPayPalPaymentLink = async (
         brand_name: 'wafarle',
         landing_page: 'BILLING',
         user_action: 'PAY_NOW',
-        payment_method: 'paypal',
         shipping_preference: 'NO_SHIPPING',
         return_url: `${window.location.origin}/payment/success`,
         cancel_url: `${window.location.origin}/payment/cancel`
@@ -93,6 +113,7 @@ export const createPayPalPaymentLink = async (
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        'PayPal-Request-Id': `${invoiceId}-${Date.now()}`,
       },
       body: JSON.stringify(paymentData)
     });
@@ -101,7 +122,7 @@ export const createPayPalPaymentLink = async (
     if (!response.ok) {
       const errorText = await response.text();
       console.error('PayPal Order Error Response:', errorText);
-      throw new Error(`PayPal Payment Error: ${response.status}`);
+      throw new Error(`فشل في إنشاء رابط الدفع: ${response.status} - ${errorText}`);
     }
 
     const data: PayPalPaymentLink = await response.json();
@@ -118,13 +139,13 @@ export const createPayPalPaymentLink = async (
     return approvalLink.href;
   } catch (error) {
     console.error('Error creating PayPal payment link:', error);
-    throw error;
+    throw new Error(`فشل في إنشاء رابط الدفع: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
   }
 };
 
 // تحويل من ريال سعودي إلى دولار أمريكي
 export const convertSARToUSD = (sarAmount: number): number => {
-  const exchangeRate = 0.27; // سعر الصرف التقريبي (يجب تحديثه من API حقيقي)
+  const exchangeRate = 0.2667; // سعر الصرف الحالي (1 SAR = 0.2667 USD)
   return Math.round(sarAmount * exchangeRate * 100) / 100;
 };
 

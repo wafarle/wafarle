@@ -73,17 +73,15 @@ Deno.serve(async (req: Request) => {
 
         // توحيد رقم الهاتف
         const normalizedPhone = normalizePhone(customer.phone);
-        const phoneEmail = `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`;
 
         console.log(`Creating account for customer ${customer.name} with phone ${normalizedPhone}`);
 
         // إنشاء حساب المصادقة
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: phoneEmail,
+          phone: normalizedPhone,
           password: '123456',
-          email_confirm: true,
+          phone_confirm: true,
           user_metadata: {
-            phone: normalizedPhone,
             auth_type: 'phone',
             customer_name: customer.name
           }

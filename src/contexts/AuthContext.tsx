@@ -67,13 +67,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isPhone) {
       const normalizedPhone = normalizePhone(emailOrPhone);
       
-      // استخدام رقم الهاتف كـ email مؤقت للمصادقة
+      // استخدام رقم الهاتف مباشرة للمصادقة
       const { error } = await supabase.auth.signUp({
-        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
+        phone: normalizedPhone,
         password,
         options: {
           data: {
-            phone: normalizedPhone,
             auth_type: 'phone'
           }
         }
@@ -93,9 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isPhone) {
       const normalizedPhone = normalizePhone(emailOrPhone);
       
-      // استخدام الإيميل المؤقت للمصادقة
+      // استخدام رقم الهاتف مباشرة للمصادقة
       const { error } = await supabase.auth.signInWithPassword({
-        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
+        phone: normalizedPhone,
         password,
       });
       return { error };

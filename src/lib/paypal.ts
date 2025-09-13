@@ -1,6 +1,6 @@
 // PayPal API Integration
-const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'AV3FKMldjC6Yce3b-L3aajkZV6PA1LgnhddWs8X_plO0YTmwUy8nf6zgb82Ejf5p81UBwbMJgpZGExBQ';
-const PAYPAL_CLIENT_SECRET = import.meta.env.VITE_PAYPAL_CLIENT_SECRET || 'EJnEh8mWtlPuweQsOaQNlTW3i0VulGghdR6RNRl2CldUN3s694N9YjttrS9ZQ6nsyv9m6q8wv_QEzZgC';
+const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'AUfS4VYq_LdTbHZvGmCtRumhpzRjsmkMX760IKrHoISf87UhgLND-UAA7aswSDXCDwXxFv0KqisHEpXc';
+const PAYPAL_CLIENT_SECRET = import.meta.env.VITE_PAYPAL_CLIENT_SECRET || 'EFHZVuSn8Wy457NdjmqsaaDSMujhgsMekdFnQ_g2p-BwdOAEgov_DCebCJ9pD5K6GgcY1mrQUFOH6Gdb';
 const PAYPAL_BASE_URL = 'https://api-m.sandbox.paypal.com'; // للاختبار
 // const PAYPAL_BASE_URL = 'https://api-m.paypal.com'; // للإنتاج
 

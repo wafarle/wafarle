@@ -93,12 +93,13 @@ export const createPayPalPaymentLink = async (
         paypal: {
           experience_context: {
             payment_method_preference: 'IMMEDIATE_PAYMENT_REQUIRED',
-            payment_method_selected: 'PAYPAL',
             brand_name: 'wafarle',
             locale: 'ar-SA',
-            landing_page: 'GUEST_CHECKOUT',
+            landing_page: 'LOGIN',
             shipping_preference: 'NO_SHIPPING',
-            user_action: 'PAY_NOW'
+            user_action: 'PAY_NOW',
+            return_url: `${window.location.origin}/#/payment-success`,
+            cancel_url: `${window.location.origin}/#/store`
           }
         }
       },
@@ -109,19 +110,7 @@ export const createPayPalPaymentLink = async (
           currency_code: currency,
           value: amount.toFixed(2)
         }
-      }],
-      application_context: {
-        brand_name: 'wafarle',
-        landing_page: 'LOGIN',
-        user_action: 'PAY_NOW',
-        shipping_preference: 'NO_SHIPPING', 
-        payment_method: {
-          payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED',
-          payer_selected: 'PAYPAL'
-        },
-        return_url: `${window.location.origin}/payment/success`,
-        cancel_url: `${window.location.origin}/payment/cancel`
-      }
+      }]
     };
 
     console.log('Payment data:', JSON.stringify(paymentData, null, 2));

@@ -8,7 +8,11 @@ import {
   Save, 
   X,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Lock,
+  Eye,
+  EyeOff,
+  Key
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,17 +28,28 @@ interface CustomerProfile {
 }
 
 const CustomerProfile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: ''
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -207,6 +222,61 @@ const CustomerProfile: React.FC = () => {
     });
   };
 
+  const handlePasswordChange = async () => {
+    try {
+      setChangingPassword(true);
+      setError(null);
+
+      // التحقق من صحة البيانات
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setError('كلمتا المرور الجديدتان غير متطابقتين');
+        return;
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        setError('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+        return;
+      }
+
+      // تغيير كلمة المرور
+      const { error } = await changePassword(passwordForm.newPassword);
+
+      if (error) {
+        if (error.message.includes('password')) {
+          setError('حدث خطأ في تغيير كلمة المرور. تأكد من كلمة المرور الحالية.');
+        } else {
+          setError('حدث خطأ في تغيير كلمة المرور');
+        }
+        return;
+      }
+
+      setPasswordSuccess(true);
+      setShowPasswordForm(false);
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setError('حدث خطأ في تغيير كلمة المرور');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleCancelPasswordChange = () => {
+    setShowPasswordForm(false);
+    setError(null);
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -238,15 +308,24 @@ const CustomerProfile: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">الملف الشخصي</h1>
           <p className="text-gray-600">إدارة معلوماتك الشخصية</p>
         </div>
-        {!editing && (
+        <div className="flex gap-3">
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            >
+              <Edit className="w-4 h-4 ml-2" />
+              تعديل المعلومات
+            </button>
+          )}
           <button
-            onClick={() => setEditing(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            onClick={() => setShowPasswordForm(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
           >
-            <Edit className="w-4 h-4 ml-2" />
-            تعديل المعلومات
+            <Key className="w-4 h-4 ml-2" />
+            تغيير كلمة المرور
           </button>
-        )}
+        </div>
       </div>
 
       {/* Success Message */}
@@ -255,6 +334,16 @@ const CustomerProfile: React.FC = () => {
           <div className="flex items-center">
             <CheckCircle className="w-5 h-5 text-green-600 ml-2" />
             <span className="text-green-800">تم حفظ التغييرات بنجاح!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Password Success Message */}
+      {passwordSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <CheckCircle className="w-5 h-5 text-green-600 ml-2" />
+            <span className="text-green-800">تم تغيير كلمة المرور بنجاح!</span>
           </div>
         </div>
       )}
@@ -451,6 +540,110 @@ const CustomerProfile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordForm && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">تغيير كلمة المرور</h2>
+                <button
+                  onClick={handleCancelPasswordChange}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  كلمة المرور الجديدة
+                </label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="كلمة المرور الجديدة"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">6 أحرف على الأقل</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  تأكيد كلمة المرور الجديدة
+                </label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="أعد كتابة كلمة المرور"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Key className="w-5 h-5 text-blue-600 ml-2" />
+                  <span className="font-medium text-blue-900">متطلبات كلمة المرور</span>
+                </div>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• على الأقل 6 أحرف</li>
+                  <li>• استخدم مزيج من الأحرف والأرقام</li>
+                  <li>• تجنب كلمات المرور السهلة</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 rounded-b-xl border-t border-gray-200">
+              <div className="flex justify-end space-x-3 space-x-reverse">
+                <button
+                  onClick={handleCancelPasswordChange}
+                  disabled={changingPassword}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handlePasswordChange}
+                  disabled={changingPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center"
+                >
+                  {changingPassword ? (
+                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                  ) : (
+                    <Save className="w-4 h-4 ml-2" />
+                  )}
+                  {changingPassword ? 'جاري التغيير...' : 'تغيير كلمة المرور'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Support Section */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">

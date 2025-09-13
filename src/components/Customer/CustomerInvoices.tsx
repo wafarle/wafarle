@@ -503,7 +503,7 @@ const CustomerInvoices: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-yellow-900">الدفع الإلكتروني</h4>
                       <p className="text-yellow-800 text-sm">
-                        يمكنك الدفع بالفيزا أو الماستركارد عبر PayPal
+                        ادفع بالفيزا أو الماستركارد مباشرة - آمن وسريع
                       </p>
                     </div>
                     <button

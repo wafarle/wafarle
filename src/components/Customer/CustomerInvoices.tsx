@@ -41,6 +41,8 @@ const CustomerInvoices: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<CustomerInvoice | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [generatingPayment, setGeneratingPayment] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [payingInvoice, setPayingInvoice] = useState<CustomerInvoice | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -238,6 +240,45 @@ const CustomerInvoices: React.FC = () => {
       alert('❌ حدث خطأ في إنشاء رابط الدفع. يرجى المحاولة مرة أخرى.');
     } finally {
       setGeneratingPayment(null);
+    }
+  };
+
+  const convertSARToUSD = (sarAmount: number): number => {
+    const exchangeRate = 0.2667; // سعر الصرف الحالي (1 SAR = 0.2667 USD)
+    return Math.round(sarAmount * exchangeRate * 100) / 100;
+  };
+
+  const handlePayInvoice = (invoice: CustomerInvoice) => {
+    setPayingInvoice(invoice);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = async (details: any, invoice: CustomerInvoice) => {
+    try {
+      // تحديث حالة الفاتورة إلى مدفوعة
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          status: 'paid',
+          paid_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', invoice.id);
+
+      if (error) throw error;
+
+      // تحديث قائمة الفواتير
+      setInvoices(prev => prev.map(inv => 
+        inv.id === invoice.id 
+          ? { ...inv, status: 'paid', paid_date: new Date().toISOString().split('T')[0] }
+          : inv
+      ));
+
+      setShowPaymentModal(false);
+      setPayingInvoice(null);
+      alert('✅ تم الدفع بنجاح! شكراً لك');
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      alert('❌ حدث خطأ في تحديث حالة الدفع');
     }
   };
 

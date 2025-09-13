@@ -13,15 +13,16 @@ import {
   AlertTriangle,
   CheckCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Phone
 } from 'lucide-react';
 import { useCustomers } from '../hooks/useSupabase';
 import { supabase } from '../lib/supabase';
 
 const CustomerAccounts: React.FC = () => {
-  const { customers, loading: customersLoading, error: customersError } = useCustomers();
+  const { customers, loading: customersLoading, error: customersError, setCustomers } = useCustomers();
   const [processing, setProcessing] = useState<string | null>(null);
-  const [createdAccounts, setCreatedAccounts] = useState<{[key: string]: {email: string, password: string}}>({});
+  const [createdAccounts, setCreatedAccounts] = useState<{[key: string]: {phone: string, password: string}}>({});
   const [showPassword, setShowPassword] = useState<{[key: string]: boolean}>({});
   const [filter, setFilter] = useState<'all' | 'with_account' | 'without_account'>('all');
 
@@ -37,11 +38,18 @@ const CustomerAccounts: React.FC = () => {
     }
   });
 
+  // إحصائيات محدثة بناءً على رقم الهاتف
+  const customersWithPhone = customers.filter(c => c.phone && c.phone.trim());
+  const customersWithAccounts = customers.filter(c => c.auth_user_id);
+  const customersWithoutAccounts = customersWithPhone.filter(c => !c.auth_user_id);
+
   // إحصائيات
   const stats = {
     total: customers.length,
-    withAccount: customers.filter(c => c.auth_user_id !== null).length,
-    withoutAccount: customers.filter(c => c.auth_user_id === null).length
+    withPhone: customersWithPhone.length,
+    withAccount: customersWithAccounts.length,
+    withoutAccount: customersWithoutAccounts.length,
+    canCreateAccounts: customersWithoutAccounts.length
   };
 
   // إنشاء حساب مصادقة للعميل
@@ -58,15 +66,6 @@ const CustomerAccounts: React.FC = () => {
       const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
       let normalizedPhone = cleanPhone;
       
-      // تنظيف وتوحيد رقم الهاتف
-      const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
-      let normalizedPhone = cleanPhone;
-      
-      if (cleanPhone.startsWith('05')) {
-        normalizedPhone = '+966' + cleanPhone.substring(1);
-      } else if (cleanPhone.startsWith('5')) {
-        normalizedPhone = '+966' + cleanPhone;
-      } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
       // تحويل إلى التنسيق الموحد
       if (cleanPhone.startsWith('05')) {
         normalizedPhone = '+966' + cleanPhone.substring(1);
@@ -78,8 +77,42 @@ const CustomerAccounts: React.FC = () => {
         normalizedPhone = cleanPhone;
       }
 
+      // التحقق من تكرار رقم الهاتف في المصادقة
+      const { data: existingCustomers, error: checkError } = await supabase
+        .from('customers')
+        .select('id, name, phone_auth')
+        .eq('phone_auth', normalizedPhone);
+
+      if (checkError) throw checkError;
+
+      if (existingCustomers && existingCustomers.length > 0) {
+        const duplicate = existingCustomers[0];
+        if (duplicate.id !== customer.id) {
+          throw new Error(`رقم الهاتف "${customer.phone}" مستخدم بالفعل من قبل عميل آخر`);
+        }
+      }
+      
+      // إنشاء حساب المصادقة في Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
+        password: '123456',
+        email_confirm: true,
+        user_metadata: {
+          phone: normalizedPhone,
+          auth_type: 'phone',
+          customer_name: customer.name
+        }
+      });
+
+      if (authError) {
+        if (authError.message.includes('already registered')) {
+          throw new Error('رقم الهاتف مسجل مسبقاً في النظام');
+        }
+        throw authError;
+      }
+
       // ربط العميل بحساب المصادقة
-      const { error: linkError } = await supabase
+      const { data: updatedCustomer, error: linkError } = await supabase
         .from('customers')
         .update({ 
           auth_user_id: authData.user.id,
@@ -89,11 +122,18 @@ const CustomerAccounts: React.FC = () => {
 
       if (linkError) throw linkError;
 
+      // تحديث قائمة العملاء محلياً
+      setCustomers(prev => prev.map(c => 
+        c.id === customer.id 
+          ? { ...c, auth_user_id: authData.user.id, phone_auth: normalizedPhone }
+          : c
+      ));
+
       // حفظ بيانات الحساب المُنشأ
       setCreatedAccounts(prev => ({
         ...prev,
         [customer.id]: {
-          email: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
+          phone: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
           password: '123456'
         }
       }));
@@ -118,7 +158,7 @@ const CustomerAccounts: React.FC = () => {
 🔐 بيانات تسجيل الدخول لبوابة العملاء
 
 👤 العميل: ${customer?.name}
-📱 رقم الهاتف: ${account.email}
+📱 رقم الهاتف: ${account.phone}
 🔑 كلمة المرور: 123456
 
 🌐 رابط بوابة العملاء:
@@ -131,8 +171,8 @@ ${window.location.origin}
 4. كلمة المرور الموحدة: 123456
 
 🛡️ ملاحظة:
-- كلمة المرور الموحدة: 123456
 - رقم الهاتف هو اسم المستخدم الخاص بك
+- كلمة المرور الموحدة: 123456
 - يمكنك تغيير كلمة المرور من الملف الشخصي
 
 📞 للدعم: +966123456789
@@ -161,7 +201,7 @@ ${window.location.origin}
       return;
     }
 
-    const createdAccountsData: {[key: string]: {email: string, password: string}} = {};
+    const createdAccountsData: {[key: string]: {phone: string, password: string}} = {};
     let successCount = 0;
     let failureCount = 0;
 
@@ -170,18 +210,18 @@ ${window.location.origin}
         setProcessing(customer.id);
         
         // تنظيف وتوحيد رقم الهاتف
-        const customerPhone = customer.phone.replace(/[^0-9+]/g, '');
-        let normalizedPhone = customerPhone;
+        const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
+        let normalizedPhone = cleanPhone;
         
         // تحويل إلى التنسيق الموحد
-        if (customerPhone.startsWith('05')) {
-          normalizedPhone = '+966' + customerPhone.substring(1);
-        } else if (customerPhone.startsWith('5')) {
-          normalizedPhone = '+966' + customerPhone;
-        } else if (customerPhone.startsWith('966') && !customerPhone.startsWith('+')) {
-          normalizedPhone = '+' + customerPhone;
-        } else if (customerPhone.startsWith('+966')) {
-          normalizedPhone = customerPhone;
+        if (cleanPhone.startsWith('05')) {
+          normalizedPhone = '+966' + cleanPhone.substring(1);
+        } else if (cleanPhone.startsWith('5')) {
+          normalizedPhone = '+966' + cleanPhone;
+        } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
+          normalizedPhone = '+' + cleanPhone;
+        } else if (cleanPhone.startsWith('+966')) {
+          normalizedPhone = cleanPhone;
         }
         
         // إنشاء حساب المصادقة
@@ -217,59 +257,16 @@ ${window.location.origin}
         if (linkError) throw linkError;
 
         createdAccountsData[customer.id] = {
-          email: customer.phone, // حفظ رقم الهاتف
+          phone: customer.phone, // حفظ رقم الهاتف
           password: '123456'
         };
 
         successCount++;
         
-      // التحقق من تكرار رقم الهاتف في المصادقة
-      // إنشاء حساب المصادقة في Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
-        password: '123456',
-        email_confirm: true,
-        user_metadata: {
-          phone: normalizedPhone,
-          auth_type: 'phone',
-          customer_name: customer.name
-        }
-      });
-      if (checkError) throw checkError;
-      if (authError) {
-        if (authError.message.includes('already registered')) {
-          throw new Error('رقم الهاتف مسجل مسبقاً في النظام');
-        }
-        throw authError;
+      } catch (err) {
+        failureCount++;
+        console.error(`Error creating account for ${customer.name}:`, err);
       }
-
-      // ربط العميل بحساب المصادقة
-      const { error: linkError } = await supabase
-        .from('customers')
-        .update({ 
-          auth_user_id: authData.user.id,
-          phone_auth: normalizedPhone
-        })
-        .eq('id', customer.id);
-
-      if (linkError) throw linkError;
-
-      // حفظ بيانات الحساب المُنشأ
-      setCreatedAccounts(prev => ({
-        ...prev,
-        [customer.id]: {
-          email: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
-          password: '123456'
-        }
-      }));
-
-      alert('✅ تم إنشاء حساب العميل بنجاح!');
-      
-        if (duplicate.id !== customer.id) {
-      console.error('Error creating customer account:', error);
-      alert(`❌ حدث خطأ: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
-    } finally {
-      setProcessing(null);
     }
 
     setCreatedAccounts(prev => ({ ...prev, ...createdAccountsData }));
@@ -320,11 +317,11 @@ ${window.location.origin}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg ml-3">
-              <User className="w-5 h-5 text-blue-600" />
+              <Phone className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">إجمالي العملاء</p>
-              <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-sm font-medium text-gray-600">لديهم هواتف</p>
+              <p className="text-xl font-bold text-blue-600">{stats.withPhone}</p>
             </div>
           </div>
         </div>
@@ -349,6 +346,9 @@ ${window.location.origin}
             <div>
               <p className="text-sm font-medium text-gray-600">بدون حسابات</p>
               <p className="text-xl font-bold text-red-600">{stats.withoutAccount}</p>
+              <p className="text-xs text-red-500">
+                {stats.canCreateAccounts} يمكن إنشاء حسابات لهم
+              </p>
             </div>
           </div>
         </div>
@@ -412,7 +412,7 @@ ${window.location.origin}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العميل</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">البريد الإلكتروني</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم الهاتف</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">حالة الحساب</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الاشتراكات</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
@@ -436,8 +436,8 @@ ${window.location.origin}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <Mail className="w-4 h-4 text-gray-400 ml-2" />
-                        <span className="text-sm text-gray-900">{customer.email || 'غير محدد'}</span>
+                        <Phone className="w-4 h-4 text-gray-400 ml-2" />
+                        <span className="text-sm text-gray-900">{customer.phone || 'غير محدد'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -467,7 +467,7 @@ ${window.location.origin}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2 space-x-reverse">
-                        {!hasAccount && customer.email ? (
+                        {!hasAccount && customer.phone ? (
                           <button
                             onClick={() => createCustomerAccount(customer)}
                             disabled={processing === customer.id}
@@ -482,7 +482,7 @@ ${window.location.origin}
                           </button>
                         ) : !hasAccount ? (
                           <span className="text-xs text-gray-500 p-2">
-                            لا يوجد بريد إلكتروني
+                            لا يوجد رقم هاتف
                           </span>
                         ) : (
                           <div className="flex items-center">
@@ -537,12 +537,12 @@ ${window.location.origin}
                       <User className="w-5 h-5 text-green-600 ml-3" />
                       <div>
                         <p className="font-medium text-gray-900">{customer?.name}</p>
-                        <p className="text-sm text-gray-600">{account.email}</p>
+                        <p className="text-sm text-gray-600">{account.phone}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <div className="text-right">
-                        <p className="text-xs text-gray-600">رقم الهاتف: {account.email}</p>
+                        <p className="text-xs text-gray-600">رقم الهاتف: {account.phone}</p>
                         <p className="text-xs text-gray-600">كلمة المرور:</p>
                         <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
                           {showPassword[customerId] ? account.password : '••••••••'}

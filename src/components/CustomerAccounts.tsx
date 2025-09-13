@@ -46,65 +46,40 @@ const CustomerAccounts: React.FC = () => {
 
   // إنشاء حساب مصادقة للعميل
   const createCustomerAccount = async (customer: any) => {
-    if (!customer.phone) {
-      alert('لا يمكن إنشاء حساب بدون رقم هاتف');
-      return;
-    }
-
     setProcessing(customer.id);
     
     try {
-      // تنظيف وتوحيد رقم الهاتف
-      const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
-      let normalizedPhone = cleanPhone;
-      
-      // تحويل إلى التنسيق الموحد
-      if (cleanPhone.startsWith('05')) {
-        normalizedPhone = '+966' + cleanPhone.substring(1);
-      } else if (cleanPhone.startsWith('5')) {
-        normalizedPhone = '+966' + cleanPhone;
-      } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
-        normalizedPhone = '+' + cleanPhone;
-      } else if (cleanPhone.startsWith('+966')) {
-        normalizedPhone = cleanPhone;
-      }
-
-      // إنشاء حساب المصادقة في Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
-        password: '123456',
-        email_confirm: true,
-        user_metadata: {
-          phone: normalizedPhone,
-          auth_type: 'phone',
-          customer_name: customer.name
-        }
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-customer-accounts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ customers: [customer] })
       });
 
-      if (authError) {
-        if (authError.message.includes('already registered')) {
-          throw new Error('رقم الهاتف مسجل مسبقاً في النظام');
-        }
-        throw authError;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // ربط العميل بحساب المصادقة
-      const { error: linkError } = await supabase
-        .from('customers')
-        .update({ 
-          auth_user_id: authData.user.id,
-          phone_auth: normalizedPhone
-        })
-        .eq('id', customer.id);
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-      if (linkError) throw linkError;
+      const result = data.results[0];
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
       // حفظ بيانات الحساب المُنشأ
       setCreatedAccounts(prev => ({
         ...prev,
         [customer.id]: {
-          email: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
-          password: '123456'
+          email: result.phone,
+          password: result.password
         }
       }));
 
@@ -177,10 +152,10 @@ ${window.location.origin}
 
   // إنشاء حسابات لجميع العملاء بدون حسابات
   const createAllMissingAccounts = async () => {
-    const customersWithoutAccounts = customers.filter(c => !c.auth_user_id && c.phone);
+    const customersWithoutAccounts = customers.filter(c => !c.auth_user_id);
     
     if (customersWithoutAccounts.length === 0) {
-      alert('جميع العملاء لديهم حسابات بالفعل أو لا يوجد رقم هاتف');
+      alert('جميع العملاء لديهم حسابات بالفعل');
       return;
     }
 
@@ -188,66 +163,53 @@ ${window.location.origin}
       return;
     }
 
-    const createdAccountsData: {[key: string]: {email: string, password: string}} = {};
-    let successCount = 0;
-    let failureCount = 0;
+    setProcessing('all');
 
-    for (const customer of customersWithoutAccounts) {
-      try {
-        setProcessing(customer.id);
-        
-        // تنظيف وتوحيد رقم الهاتف
-        const normalizedPhone = normalizePhone(customer.phone);
-        
-        // إنشاء حساب المصادقة
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
-          password: '123456',
-          email_confirm: true,
-          user_metadata: {
-            phone: normalizedPhone,
-            auth_type: 'phone',
-            customer_name: customer.name
-          }
-        });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-customer-accounts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ customers: customersWithoutAccounts })
+      });
 
-        if (authError) {
-          if (authError.message.includes('already registered')) {
-            failureCount++;
-            console.log(`Customer ${customer.name} phone already registered`);
-            continue;
-          }
-          throw authError;
-        }
-
-        // ربط العميل بحساب المصادقة
-        const { error: linkError } = await supabase
-          .from('customers')
-          .update({ 
-            auth_user_id: authData.user.id,
-            phone_auth: normalizedPhone
-          })
-          .eq('id', customer.id);
-
-        if (linkError) throw linkError;
-
-        createdAccountsData[customer.id] = {
-          email: customer.phone, // حفظ رقم الهاتف
-          password: '123456'
-        };
-
-        successCount++;
-        
-      } catch (err) {
-        failureCount++;
-        console.error('Error creating customer account:', err);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    }
 
-    setCreatedAccounts(prev => ({ ...prev, ...createdAccountsData }));
-    setProcessing(null);
-    
-    alert(`✅ تم إنشاء ${successCount} حساب بنجاح!\n${failureCount > 0 ? `❌ فشل في إنشاء ${failureCount} حساب` : ''}`);
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const createdAccountsData: {[key: string]: {email: string, password: string}} = {};
+      let successCount = 0;
+      let failureCount = 0;
+
+      data.results.forEach((result: any) => {
+        if (result.success) {
+          createdAccountsData[result.customerId] = {
+            email: result.phone,
+            password: result.password
+          };
+          successCount++;
+        } else {
+          failureCount++;
+        }
+      });
+
+      setCreatedAccounts(prev => ({ ...prev, ...createdAccountsData }));
+      alert(`✅ تم إنشاء ${successCount} حساب بنجاح!\n${failureCount > 0 ? `❌ فشل في إنشاء ${failureCount} حساب` : ''}`);
+
+    } catch (error) {
+      console.error('Error creating customer accounts:', error);
+      alert(`❌ حدث خطأ: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    } finally {
+      setProcessing(null);
+    }
   };
 
   if (customersLoading) {
@@ -440,6 +402,7 @@ ${window.location.origin}
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2 space-x-reverse">
                         {!hasAccount && customer.email ? (
+                        {!hasAccount && customer.phone ? (
                           <button
                             onClick={() => createCustomerAccount(customer)}
                             disabled={processing === customer.id}
@@ -454,7 +417,7 @@ ${window.location.origin}
                           </button>
                         ) : !hasAccount ? (
                           <span className="text-xs text-gray-500 p-2">
-                            لا يوجد بريد إلكتروني
+                            لا يوجد رقم هاتف
                           </span>
                         ) : (
                           <div className="flex items-center">

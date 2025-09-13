@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, UserPlus, Loader2, User, Phone } from 'lucide-react';
+import { Phone, Lock, Eye, EyeOff, UserPlus, Loader2, User, Mail, MapPin } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -11,8 +11,8 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
   const { signUp } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
+    email: '',
     address: '',
     password: '',
     confirmPassword: '',
@@ -23,6 +23,52 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const validatePhone = (phone: string) => {
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    
+    // أنماط صحيحة للرقم السعودي
+    const patterns = [
+      /^05[0-9]{8}$/,        // 0501234567
+      /^5[0-9]{8}$/,         // 501234567
+      /^9665[0-9]{8}$/,      // 9665xxxxxxxx
+      /^\+9665[0-9]{8}$/     // +9665xxxxxxxx
+    ];
+    
+    return patterns.some(pattern => pattern.test(cleanPhone));
+  };
+
+  const normalizePhone = (phone: string) => {
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    
+    if (cleanPhone.startsWith('05')) {
+      return '+966' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith('5')) {
+      return '+966' + cleanPhone;
+    } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
+      return '+' + cleanPhone;
+    } else if (cleanPhone.startsWith('+966')) {
+      return cleanPhone;
+    }
+    
+    return cleanPhone;
+  };
+
+  const formatPhoneForDisplay = (phone: string) => {
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    
+    if (cleanPhone.startsWith('+9665')) {
+      return cleanPhone.replace(/(\+966)(\d)(\d{4})(\d{4})/, '$1 $2 $3 $4');
+    } else if (cleanPhone.startsWith('9665')) {
+      return cleanPhone.replace(/(\d{3})(\d)(\d{4})(\d{4})/, '+$1 $2 $3 $4');
+    } else if (cleanPhone.startsWith('05')) {
+      return cleanPhone.replace(/(\d{2})(\d)(\d{4})(\d{4})/, '$1 $2 $3 $4');
+    } else if (cleanPhone.startsWith('5')) {
+      return cleanPhone.replace(/(\d)(\d{4})(\d{4})/, '05$1 $2 $3');
+    }
+    
+    return phone;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -30,8 +76,8 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
 
     // تنظيف البيانات
     const name = formData.name.trim();
-    const email = formData.email.trim().toLowerCase();
     const phone = formData.phone.trim();
+    const email = formData.email.trim().toLowerCase();
     const address = formData.address.trim();
     const password = formData.password;
     const confirmPassword = formData.confirmPassword;
@@ -43,22 +89,15 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
       return;
     }
 
-    if (!email) {
-      setError('البريد الإلكتروني مطلوب');
-      setLoading(false);
-      return;
-    }
-
     if (!phone) {
       setError('رقم الهاتف مطلوب');
       setLoading(false);
       return;
     }
 
-    // التحقق من صحة البيانات
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('البريد الإلكتروني غير صحيح');
+    // التحقق من صحة رقم الهاتف
+    if (!validatePhone(phone)) {
+      setError('رقم الهاتف غير صحيح. يرجى إدخال رقم سعودي صحيح (مثال: 0501234567)');
       setLoading(false);
       return;
     }
@@ -76,35 +115,29 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
     }
 
     try {
-      // التحقق من تكرار البريد الإلكتروني أو رقم الهاتف
+      const normalizedPhone = normalizePhone(phone);
+      
+      // التحقق من تكرار رقم الهاتف في جدول العملاء
       const { data: existingCustomers, error: checkError } = await supabase
         .from('customers')
-        .select('id, name, email, phone')
-        .or(`email.eq.${email},phone.eq.${phone}`);
+        .select('id, name, phone')
+        .eq('phone_auth', normalizedPhone);
 
       if (checkError) throw checkError;
 
       if (existingCustomers && existingCustomers.length > 0) {
         const duplicate = existingCustomers[0];
-        let message = '';
-        
-        if (duplicate.email === email) {
-          message = `البريد الإلكتروني "${email}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`;
-        } else if (duplicate.phone === phone) {
-          message = `رقم الهاتف "${phone}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`;
-        }
-        
-        setError(message);
+        setError(`رقم الهاتف "${phone}" مستخدم بالفعل من قبل العميل "${duplicate.name}"`);
         setLoading(false);
         return;
       }
 
-      // إنشاء حساب المصادقة
-      const { error: authError, data: authData } = await signUp(email, password);
+      // إنشاء حساب المصادقة برقم الهاتف
+      const { error: authError, data: authData } = await signUp(phone, password, true);
       
       if (authError) {
         if (authError.message.includes('already registered')) {
-          setError('هذا البريد الإلكتروني مسجل مسبقاً');
+          setError('رقم الهاتف مسجل مسبقاً');
         } else {
           setError('حدث خطأ في إنشاء الحساب');
         }
@@ -118,9 +151,11 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
           .from('customers')
           .insert([{
             name,
-            email,
             phone,
-            address: address || ''
+            phone_auth: normalizedPhone,
+            email: email || '',
+            address: address || '',
+            auth_user_id: authData.user.id
           }]);
 
         if (customerError) {
@@ -147,7 +182,7 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
           </div>
           <h3 className="text-lg font-semibold text-green-900 mb-2">تم إنشاء الحساب بنجاح!</h3>
           <p className="text-green-700 text-sm">
-            يمكنك الآن تسجيل الدخول والوصول إلى لوحة التحكم الخاصة بك
+            يمكنك الآن تسجيل الدخول برقم هاتفك وكلمة المرور
           </p>
         </div>
         <button
@@ -164,7 +199,7 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
     <div className="w-full max-w-md mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">انضم إلينا</h2>
-        <p className="text-gray-600">أنشئ حسابك للوصول إلى خدماتنا</p>
+        <p className="text-gray-600">أنشئ حسابك برقم هاتفك</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -193,23 +228,6 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            البريد الإلكتروني
-          </label>
-          <div className="relative">
-            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="example@domain.com"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
             رقم الهاتف
           </label>
           <div className="relative">
@@ -219,8 +237,33 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
               required
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              onBlur={(e) => {
+                // تنسيق الرقم عند فقدان التركيز
+                const formatted = formatPhoneForDisplay(e.target.value);
+                setFormData(prev => ({ ...prev, phone: formatted }));
+              }}
               className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="+966501234567"
+              placeholder="0501234567"
+              dir="ltr"
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            رقم هاتفك السعودي (مطلوب للدخول)
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            البريد الإلكتروني (اختياري)
+          </label>
+          <div className="relative">
+            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder="example@domain.com (اختياري)"
             />
           </div>
         </div>
@@ -229,13 +272,16 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
           <label className="block text-sm font-medium text-gray-700 mb-2">
             العنوان (اختياري)
           </label>
-          <input
-            type="text"
-            value={formData.address}
-            onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            placeholder="الرياض، المملكة العربية السعودية"
-          />
+          <div className="relative">
+            <MapPin className="absolute right-3 top-3 text-gray-400 w-5 h-5" />
+            <textarea
+              value={formData.address}
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              rows={2}
+              className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder="الرياض، المملكة العربية السعودية"
+            />
+          </div>
         </div>
 
         <div>
@@ -260,6 +306,7 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
+          <p className="text-xs text-gray-500 mt-1">6 أحرف على الأقل</p>
         </div>
 
         <div>

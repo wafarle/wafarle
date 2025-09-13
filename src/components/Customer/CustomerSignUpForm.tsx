@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Phone, Lock, Eye, EyeOff, UserPlus, Loader2, User, Mail, MapPin } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth, normalizePhone } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 interface CustomerSignUpFormProps {
@@ -112,12 +112,12 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
       setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       setLoading(false);
       return;
-    }
+    const normalizedPhone = normalizePhone(phone);
 
     try {
       const normalizedPhone = normalizePhone(phone);
       
-      // التحقق من تكرار رقم الهاتف في جدول العملاء
+      // إنشاء سجل العميل في قاعدة البيانات بعد نجاح المصادقة
       const { data: existingCustomers, error: checkError } = await supabase
         .from('customers')
         .select('id, name, phone')
@@ -147,7 +147,7 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
 
       // إضافة العميل إلى جدول العملاء
       if (authData?.user?.id) {
-        const { error: customerError } = await supabase
+        .upsert([
           .from('customers')
           .insert([{
             name,
@@ -157,10 +157,12 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
             address: address || '',
             auth_user_id: authData.user.id
           }]);
-
+        ], {
+          onConflict: 'phone_auth'
+        });
         if (customerError) {
           console.error('Error creating customer record:', customerError);
-          // لا نوقف العملية، فقط نسجل الخطأ
+        console.error('Error creating/updating customer:', customerError);
         }
       }
 

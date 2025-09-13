@@ -2,6 +2,23 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+// دالة مساعدة لتوحيد تنسيق رقم الهاتف - متاحة للتصدير
+export const normalizePhone = (phone: string): string => {
+  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  
+  if (cleanPhone.startsWith('+966')) {
+    return cleanPhone;
+  } else if (cleanPhone.startsWith('966')) {
+    return '+' + cleanPhone;
+  } else if (cleanPhone.startsWith('05')) {
+    return '+966' + cleanPhone.substring(1);
+  } else if (cleanPhone.startsWith('5')) {
+    return '+966' + cleanPhone;
+  }
+  
+  return '+966' + cleanPhone;
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -92,22 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // دالة مساعدة لتوحيد تنسيق رقم الهاتف
-  const normalizePhone = (phone: string): string => {
-    const cleanPhone = phone.replace(/[^0-9+]/g, '');
-    
-    if (cleanPhone.startsWith('+966')) {
-      return cleanPhone;
-    } else if (cleanPhone.startsWith('966')) {
-      return '+' + cleanPhone;
-    } else if (cleanPhone.startsWith('05')) {
-      return '+966' + cleanPhone.substring(1);
-    } else if (cleanPhone.startsWith('5')) {
-      return '+966' + cleanPhone;
-    }
-    
-    return '+966' + cleanPhone;
-  };
 
   const signOut = async () => {
     await supabase.auth.signOut();

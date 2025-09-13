@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Phone, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth, normalizePhone } from '../../contexts/AuthContext';
 
 interface CustomerLoginFormProps {
   onToggleMode: () => void;
@@ -52,11 +52,12 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onToggleMode }) =
     setLoading(true);
     setError(null);
 
-    const phone = formData.phone.trim();
+    // تطبيق نفس تنسيق الهاتف المستخدم في التسجيل
+    const phone = normalizePhone(formData.phone.trim());
     const password = formData.password;
 
-    // التحقق من صحة رقم الهاتف
-    if (!validatePhone(phone)) {
+    // التحقق من صحة رقم الهاتف الأصلي
+    if (!validatePhone(formData.phone.trim())) {
       setError('رقم الهاتف غير صحيح. يرجى إدخال رقم سعودي صحيح (مثال: 0501234567)');
       setLoading(false);
       return;

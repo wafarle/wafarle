@@ -180,16 +180,7 @@ ${window.location.origin}
         setProcessing(customer.id);
         
         // تنظيف وتوحيد رقم الهاتف
-        const customerPhone = customer.phone.replace(/[^0-9+]/g, '');
-        let normalizedPhone = customerPhone;
-        
-        // تحويل إلى التنسيق الموحد
-        if (customerPhone.startsWith('05')) {
-          normalizedPhone = '+966' + customerPhone.substring(1);
-        } else if (customerPhone.startsWith('5')) {
-          normalizedPhone = '+966' + customerPhone;
-        } else if (customerPhone.startsWith('966') && !customerPhone.startsWith('+')) {
-          normalizedPhone = '+' + customerPhone;
+        const normalizedPhone = normalizePhone(customer.phone);
         } else if (customerPhone.startsWith('+966')) {
           normalizedPhone = customerPhone;
         }
@@ -261,6 +252,23 @@ ${window.location.origin}
       </div>
     );
   }
+
+  // دالة مساعدة لتوحيد تنسيق رقم الهاتف (نفس المنطق في AuthContext)
+  const normalizePhone = (phone: string): string => {
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    
+    if (cleanPhone.startsWith('+966')) {
+      return cleanPhone;
+    } else if (cleanPhone.startsWith('966')) {
+      return '+' + cleanPhone;
+    } else if (cleanPhone.startsWith('05')) {
+      return '+966' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith('5')) {
+      return '+966' + cleanPhone;
+    }
+    
+    return '+966' + cleanPhone;
+  };
 
   return (
     <div className="space-y-6">

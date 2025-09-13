@@ -48,18 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (emailOrPhone: string, password: string, isPhone: boolean = false) => {
     if (isPhone) {
-      // تنظيف رقم الهاتف
-      const cleanPhone = emailOrPhone.replace(/[^0-9+]/g, '');
-      let normalizedPhone = cleanPhone;
-      
-      // تحويل إلى التنسيق الموحد
-      if (cleanPhone.startsWith('05')) {
-        normalizedPhone = '+966' + cleanPhone.substring(1);
-      } else if (cleanPhone.startsWith('5')) {
-        normalizedPhone = '+966' + cleanPhone;
-      } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
-        normalizedPhone = '+' + cleanPhone;
-      }
+      const normalizedPhone = normalizePhone(emailOrPhone);
       
       // استخدام رقم الهاتف كـ email مؤقت للمصادقة
       const { error } = await supabase.auth.signUp({
@@ -85,18 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (emailOrPhone: string, password: string, isPhone: boolean = false) => {
     if (isPhone) {
-      // تنظيف رقم الهاتف
-      const cleanPhone = emailOrPhone.replace(/[^0-9+]/g, '');
-      let normalizedPhone = cleanPhone;
-      
-      // تحويل إلى التنسيق الموحد
-      if (cleanPhone.startsWith('05')) {
-        normalizedPhone = '+966' + cleanPhone.substring(1);
-      } else if (cleanPhone.startsWith('5')) {
-        normalizedPhone = '+966' + cleanPhone;
-      } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
-        normalizedPhone = '+' + cleanPhone;
-      }
+      const normalizedPhone = normalizePhone(emailOrPhone);
       
       // استخدام الإيميل المؤقت للمصادقة
       const { error } = await supabase.auth.signInWithPassword({
@@ -112,6 +90,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return { error };
     }
+  };
+
+  // دالة مساعدة لتوحيد تنسيق رقم الهاتف
+  const normalizePhone = (phone: string): string => {
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    
+    if (cleanPhone.startsWith('+966')) {
+      return cleanPhone;
+    } else if (cleanPhone.startsWith('966')) {
+      return '+' + cleanPhone;
+    } else if (cleanPhone.startsWith('05')) {
+      return '+966' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith('5')) {
+      return '+966' + cleanPhone;
+    }
+    
+    return '+966' + cleanPhone;
   };
 
   const signOut = async () => {

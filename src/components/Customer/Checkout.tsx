@@ -77,14 +77,35 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
   };
 
   const fetchCustomerInfo = async () => {
-    if (!user?.email && !user?.user_metadata?.phone) return;
+    if (!user?.email && !user?.phone) return;
 
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .or(`email.eq.${user.email || ''},phone_auth.eq.${user.user_metadata?.phone || ''}`)
-        .maybeSingle();
+      let data = null;
+      let error = null;
+      
+      // البحث بالبريد الإلكتروني أولاً
+      if (user.email) {
+        const result = await supabase
+          .from('customers')
+          .select('*')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
+      }
+      
+      // إذا لم يتم العثور على العميل بالبريد، ابحث برقم الهاتف
+      if (!data && user.phone) {
+        const result = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone_auth', user.phone)
+          .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
+      }
 
       if (error && error.code !== 'PGRST116') {
         throw error;

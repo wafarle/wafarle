@@ -45,17 +45,38 @@ const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ onPageChange }) =
   }, [user]);
 
   const fetchCustomerData = async () => {
-    if (!user?.email) return;
+    if (!user?.email && !user?.phone) return;
 
     try {
       setLoading(true);
       
       // البحث عن بيانات العميل
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select('id')
-        .or(`email.eq.${user.email || ''},phone_auth.eq.${user.user_metadata?.phone || ''}`)
-        .single();
+      let customer = null;
+      let customerError = null;
+      
+      // البحث بالبريد الإلكتروني أولاً
+      if (user.email) {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        customer = data;
+        customerError = error;
+      }
+      
+      // إذا لم يتم العثور على العميل بالبريد، ابحث برقم الهاتف
+      if (!customer && user.phone) {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('phone_auth', user.phone)
+          .maybeSingle();
+        
+        customer = data;
+        customerError = error;
+      }
 
       if (customerError) {
         console.error('Customer not found:', customerError);

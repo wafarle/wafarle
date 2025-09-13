@@ -42,17 +42,38 @@ const CustomerProfile: React.FC = () => {
   }, [user]);
 
   const fetchProfile = async () => {
-    if (!user?.email) return;
+    if (!user?.email && !user?.phone) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .or(`email.eq.${user.email},phone_auth.eq.${user.user_metadata?.phone || ''}`)
-        .single();
+      let data = null;
+      let error = null;
+      
+      // البحث بالبريد الإلكتروني أولاً
+      if (user.email) {
+        const result = await supabase
+          .from('customers')
+          .select('*')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
+      }
+      
+      // إذا لم يتم العثور على العميل بالبريد، ابحث برقم الهاتف
+      if (!data && user.phone) {
+        const result = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone_auth', user.phone)
+          .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -60,11 +81,10 @@ const CustomerProfile: React.FC = () => {
           const { data: newProfile, error: createError } = await supabase
             .from('customers')
             .insert([{
-              name: user.user_metadata?.customer_name || user.email?.split('@')[0] || 'عميل جديد',
+              name: user.user_metadata?.customer_name || user.email?.split('@')[0] || user.phone || 'عميل جديد',
               email: user.email || '',
-              phone: user.user_metadata?.phone || '',
-              phone_auth: user.user_metadata?.phone || '',
               phone: '',
+              phone_auth: user.phone || '',
               address: ''
             }])
             .select()

@@ -132,13 +132,27 @@ export const createPayPalPaymentLink = async (
     }
 
     const data: PayPalPaymentLink = await response.json();
-    console.log('PayPal Order Response:', data);
+    console.log('PayPal Order Response:', JSON.stringify(data, null, 2));
+    console.log('Available links:', data.links?.map(link => ({ rel: link.rel, href: link.href })));
     
-    const approvalLink = data.links.find(link => link.rel === 'approve');
+    // البحث عن رابط الموافقة بطرق مختلفة
+    const approvalLink = data.links?.find(link => 
+      link.rel === 'approve' || 
+      link.rel === 'payer-action' || 
+      link.rel === 'checkout'
+    );
     
     if (!approvalLink) {
-      console.error('No approval link found in response:', data);
-      throw new Error('No approval link found in PayPal response');
+      console.error('No approval link found in response. Available links:', data.links?.map(l => l.rel));
+      
+      // إنشاء رابط بديل باستخدام order ID
+      if (data.id) {
+        const fallbackLink = `https://www.paypal.com/checkoutnow?token=${data.id}`;
+        console.log('Using fallback payment link:', fallbackLink);
+        return fallbackLink;
+      }
+      
+      throw new Error(`لم يتم العثور على رابط الدفع في استجابة PayPal. الروابط المتاحة: ${data.links?.map(l => l.rel).join(', ') || 'لا توجد روابط'}`);
     }
 
     console.log('Payment link created successfully:', approvalLink.href);

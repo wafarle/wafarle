@@ -55,36 +55,36 @@ const CustomerAccounts: React.FC = () => {
     
     try {
       // إنشاء كلمة مرور مؤقتة
-      const tempPassword = `temp${Math.floor(Math.random() * 10000)}`;
+      const tempPassword = `${customer.name.replace(/\s+/g, '')}${Math.floor(Math.random() * 1000)}`;
+      
+      // تنظيف وتوحيد رقم الهاتف
+      const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
+      let normalizedPhone = cleanPhone;
+      
+      if (cleanPhone.startsWith('05')) {
+        normalizedPhone = '+966' + cleanPhone.substring(1);
+      } else if (cleanPhone.startsWith('5')) {
+        normalizedPhone = '+966' + cleanPhone;
+      } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
+        normalizedPhone = '+' + cleanPhone;
+      }
       
       // إنشاء حساب المصادقة في Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: customer.email,
+        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
         password: tempPassword,
-        email_confirm: true // تأكيد البريد الإلكتروني تلقائياً
+        email_confirm: true,
+        user_metadata: {
+          phone: normalizedPhone,
+          auth_type: 'phone',
+          customer_name: customer.name
+        }
       });
 
       if (authError) {
         if (authError.message.includes('already registered')) {
-          // البحث عن المستخدم الموجود
-          const { data: existingUser, error: existingError } = await supabase.auth.admin.listUsers();
-          
-          if (existingError) throw existingError;
-          
-          const existingAuthUser = existingUser.users.find(u => u.email === customer.email);
-          
-          if (existingAuthUser) {
-            // ربط العميل بالحساب الموجود
-            const { error: updateError } = await supabase
-              .from('customers')
-              .update({ auth_user_id: existingAuthUser.id })
-              .eq('id', customer.id);
-
-            if (updateError) throw updateError;
-            
-            alert('✅ تم ربط العميل بالحساب الموجود بنجاح!');
-            return;
-          }
+          setError('رقم الهاتف مسجل مسبقاً في النظام');
+          return;
         }
         throw authError;
       }
@@ -92,7 +92,10 @@ const CustomerAccounts: React.FC = () => {
       // ربط العميل بحساب المصادقة
       const { error: linkError } = await supabase
         .from('customers')
-        .update({ auth_user_id: authData.user.id })
+        .update({ 
+          auth_user_id: authData.user.id,
+          phone_auth: normalizedPhone
+        })
         .eq('id', customer.id);
 
       if (linkError) throw linkError;
@@ -101,7 +104,7 @@ const CustomerAccounts: React.FC = () => {
       setCreatedAccounts(prev => ({
         ...prev,
         [customer.id]: {
-          email: customer.email,
+          email: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
           password: tempPassword
         }
       }));
@@ -126,7 +129,7 @@ const CustomerAccounts: React.FC = () => {
 🔐 بيانات تسجيل الدخول لبوابة العملاء
 
 👤 العميل: ${customer?.name}
-📧 البريد الإلكتروني: ${account.email}
+📱 رقم الهاتف: ${account.email}
 🔑 كلمة المرور المؤقتة: ${account.password}
 
 🌐 رابط بوابة العملاء:
@@ -135,13 +138,13 @@ ${window.location.origin}
 📋 التعليمات:
 1. افتح الرابط أعلاه
 2. اختر "تسجيل الدخول"
-3. أدخل البريد الإلكتروني وكلمة المرور
+3. أدخل رقم الهاتف وكلمة المرور
 4. يُنصح بتغيير كلمة المرور بعد أول تسجيل دخول
 
 🛡️ ملاحظة أمنية:
 - هذه كلمة مرور مؤقتة
 - يجب تغييرها عند أول استخدام
-- لا تشارك هذه البيانات مع أي شخص آخر
+- رقم الهاتف هو اسم المستخدم الخاص بك
 
 📞 للدعم: +966123456789
 📧 البريد: support@wafarle.com
@@ -496,6 +499,7 @@ ${window.location.origin}
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <div className="text-right">
+                        <p className="text-xs text-gray-600">رقم الهاتف: {account.email}</p>
                         <p className="text-xs text-gray-600">كلمة المرور:</p>
                         <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
                           {showPassword[customerId] ? account.password : '••••••••'}
@@ -529,7 +533,7 @@ ${window.location.origin}
                 <ol className="text-sm text-blue-800 space-y-1">
                   <li>1. انقر على "نسخ البيانات" بجانب كل عميل</li>
                   <li>2. أرسل البيانات للعميل عبر الواتساب أو الإيميل</li>
-                  <li>3. اطلب من العميل تغيير كلمة المرور عند أول تسجيل دخول</li>
+                  <li>3. العميل يسجل دخول برقم هاتفه وكلمة المرور</li>
                   <li>4. العميل يمكنه الآن الوصول لبوابة العملاء على: <code className="bg-blue-100 px-1 rounded">{window.location.origin}</code></li>
                 </ol>
               </div>

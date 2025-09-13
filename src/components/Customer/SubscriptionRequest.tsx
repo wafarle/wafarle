@@ -107,7 +107,7 @@ const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange 
       const { data: existingCustomer, error: customerError } = await supabase
         .from('customers')
         .select('id')
-        .eq('email', user?.email || '')
+        .or(`email.eq.${user?.email || ''},phone_auth.eq.${user?.user_metadata?.phone || ''}`)
         .single();
 
       if (customerError && customerError.code !== 'PGRST116') {

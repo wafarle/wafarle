@@ -77,13 +77,13 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
   };
 
   const fetchCustomerInfo = async () => {
-    if (!user?.email) return;
+    if (!user?.email && !user?.user_metadata?.phone) return;
 
     try {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('email', user.email)
+        .or(`email.eq.${user.email || ''},phone_auth.eq.${user.user_metadata?.phone || ''}`)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {

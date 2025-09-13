@@ -51,7 +51,7 @@ const CustomerProfile: React.FC = () => {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('email', user.email)
+        .or(`email.eq.${user.email},phone_auth.eq.${user.user_metadata?.phone || ''}`)
         .single();
 
       if (error) {
@@ -60,8 +60,10 @@ const CustomerProfile: React.FC = () => {
           const { data: newProfile, error: createError } = await supabase
             .from('customers')
             .insert([{
-              name: user.email.split('@')[0] || 'عميل جديد',
-              email: user.email,
+              name: user.user_metadata?.customer_name || user.email?.split('@')[0] || 'عميل جديد',
+              email: user.email || '',
+              phone: user.user_metadata?.phone || '',
+              phone_auth: user.user_metadata?.phone || '',
               phone: '',
               address: ''
             }])
@@ -246,11 +248,17 @@ const CustomerProfile: React.FC = () => {
                 {/* Email (Read Only) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    البريد الإلكتروني
+                    البريد الإلكتروني / رقم الهاتف
                   </label>
                   <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <Mail className="w-5 h-5 text-gray-400 ml-3" />
-                    <span className="text-gray-900">{profile?.email}</span>
+                    {profile?.phone_auth ? (
+                      <Phone className="w-5 h-5 text-gray-400 ml-3" />
+                    ) : (
+                      <Mail className="w-5 h-5 text-gray-400 ml-3" />
+                    )}
+                    <span className="text-gray-900">
+                      {profile?.phone_auth || profile?.email || 'غير محدد'}
+                    </span>
                     <span className="mr-2 text-xs text-gray-500">(لا يمكن تعديله)</span>
                   </div>
                 </div>

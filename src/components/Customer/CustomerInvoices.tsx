@@ -57,7 +57,7 @@ const CustomerInvoices: React.FC = () => {
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('id, name')
-        .eq('email', user.email)
+        .or(`email.eq.${user.email || ''},phone_auth.eq.${user.user_metadata?.phone || ''}`)
         .single();
 
       if (customerError) {

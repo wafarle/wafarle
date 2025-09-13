@@ -112,6 +112,8 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
       setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       setLoading(false);
       return;
+    }
+
     const normalizedPhone = normalizePhone(phone);
 
     try {
@@ -147,7 +149,7 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
 
       // إضافة العميل إلى جدول العملاء
       if (authData?.user?.id) {
-        .upsert([
+        const { error: customerError } = await supabase
           .from('customers')
           .insert([{
             name,
@@ -157,12 +159,9 @@ const CustomerSignUpForm: React.FC<CustomerSignUpFormProps> = ({ onToggleMode })
             address: address || '',
             auth_user_id: authData.user.id
           }]);
-        ], {
-          onConflict: 'phone_auth'
-        });
+
         if (customerError) {
           console.error('Error creating customer record:', customerError);
-        console.error('Error creating/updating customer:', customerError);
         }
       }
 

@@ -158,6 +158,23 @@ ${window.location.origin}
     }
   };
 
+  // دالة مساعدة لتوحيد تنسيق رقم الهاتف (نفس المنطق في AuthContext)
+  const normalizePhone = (phone: string): string => {
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    
+    if (cleanPhone.startsWith('+966')) {
+      return cleanPhone;
+    } else if (cleanPhone.startsWith('966')) {
+      return '+' + cleanPhone;
+    } else if (cleanPhone.startsWith('05')) {
+      return '+966' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith('5')) {
+      return '+966' + cleanPhone;
+    }
+    
+    return '+966' + cleanPhone;
+  };
+
   // إنشاء حسابات لجميع العملاء بدون حسابات
   const createAllMissingAccounts = async () => {
     const customersWithoutAccounts = customers.filter(c => !c.auth_user_id && c.phone);
@@ -181,9 +198,6 @@ ${window.location.origin}
         
         // تنظيف وتوحيد رقم الهاتف
         const normalizedPhone = normalizePhone(customer.phone);
-        } else if (customerPhone.startsWith('+966')) {
-          normalizedPhone = customerPhone;
-        }
         
         // إنشاء حساب المصادقة
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -252,23 +266,6 @@ ${window.location.origin}
       </div>
     );
   }
-
-  // دالة مساعدة لتوحيد تنسيق رقم الهاتف (نفس المنطق في AuthContext)
-  const normalizePhone = (phone: string): string => {
-    const cleanPhone = phone.replace(/[^0-9+]/g, '');
-    
-    if (cleanPhone.startsWith('+966')) {
-      return cleanPhone;
-    } else if (cleanPhone.startsWith('966')) {
-      return '+' + cleanPhone;
-    } else if (cleanPhone.startsWith('05')) {
-      return '+966' + cleanPhone.substring(1);
-    } else if (cleanPhone.startsWith('5')) {
-      return '+966' + cleanPhone;
-    }
-    
-    return '+966' + cleanPhone;
-  };
 
   return (
     <div className="space-y-6">

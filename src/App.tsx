@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthPage from './components/Auth/AuthPage';
@@ -170,9 +171,18 @@ const AppContent: React.FC = () => {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <PayPalScriptProvider 
+        options={{
+          clientId: "AUfS4VYq_LdTbHZvGmCtRumhpzRjsmkMX760IKrHoISf87UhgLND-UAA7aswSDXCDwXxFv0KqisHEpXc",
+          currency: "USD",
+          intent: "capture",
+          locale: "ar_EG"
+        }}
+      >
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </PayPalScriptProvider>
     </ErrorBoundary>
   );
 }

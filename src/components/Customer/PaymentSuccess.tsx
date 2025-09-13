@@ -24,95 +24,31 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ onPageChange }) => {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    processSuccessfulPayment();
+    loadCompletedOrder();
   }, []);
 
-  const processSuccessfulPayment = async () => {
+  const loadCompletedOrder = async () => {
     try {
       setLoading(true);
       
       // استرجاع بيانات الطلب من localStorage
-      const pendingOrder = localStorage.getItem('pending_order');
-      if (!pendingOrder) {
+      const completedOrder = localStorage.getItem('completed_order');
+      if (!completedOrder) {
         setError('لم يتم العثور على بيانات الطلب');
         return;
       }
 
-      const orderData = JSON.parse(pendingOrder);
+      const orderData = JSON.parse(completedOrder);
       setOrderDetails(orderData);
       
-      // معالجة الطلب وإنشاء الاشتراكات والفواتير
-      await createSubscriptionsFromOrder(orderData);
-      
-      // مسح بيانات الطلب والسلة
-      localStorage.removeItem('pending_order');
-      localStorage.removeItem('subscription_cart');
+      // مسح بيانات الطلب المكتمل
+      localStorage.removeItem('completed_order');
       
     } catch (err) {
-      console.error('Error processing payment:', err);
-      setError('حدث خطأ في معالجة الدفع');
+      console.error('Error loading order details:', err);
+      setError('حدث خطأ في تحميل تفاصيل الطلب');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const createSubscriptionsFromOrder = async (orderData: any) => {
-    setProcessing(true);
-    
-    try {
-      const { customerId, cart, totalSAR } = orderData;
-
-      // إنشاء الاشتراكات لكل منتج في السلة
-      for (const cartItem of cart) {
-        for (let i = 0; i < cartItem.quantity; i++) {
-          // حساب تواريخ الاشتراك
-          const startDate = new Date();
-          const endDate = new Date(startDate);
-          endDate.setMonth(endDate.getMonth() + cartItem.duration_months);
-
-          // إنشاء الاشتراك
-          const { data: subscription, error: subscriptionError } = await supabase
-            .from('subscriptions')
-            .insert([{
-              customer_id: customerId,
-              pricing_tier_id: cartItem.pricing_tier_id,
-              start_date: startDate.toISOString().split('T')[0],
-              end_date: endDate.toISOString().split('T')[0],
-              status: 'active',
-              final_price: cartItem.price
-            }])
-            .select()
-            .single();
-
-          if (subscriptionError) {
-            console.error('Error creating subscription:', subscriptionError);
-            continue;
-          }
-
-          // إنشاء فاتورة للاشتراك
-          const { error: invoiceError } = await supabase
-            .from('invoices')
-            .insert([{
-              customer_id: customerId,
-              subscription_id: subscription.id,
-              amount: cartItem.price,
-              total_amount: cartItem.price,
-              status: 'paid',
-              issue_date: new Date().toISOString().split('T')[0],
-              due_date: new Date().toISOString().split('T')[0],
-              paid_date: new Date().toISOString().split('T')[0]
-            }]);
-
-          if (invoiceError) {
-            console.error('Error creating invoice:', invoiceError);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error creating subscriptions:', err);
-      throw err;
-    } finally {
-      setProcessing(false);
     }
   };
 
@@ -120,7 +56,7 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ onPageChange }) => {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-green-500" />
-        <span className="mr-2 text-gray-600">جاري معالجة الدفع...</span>
+        <span className="mr-2 text-gray-600">جاري تحميل تفاصيل الطلب...</span>
       </div>
     );
   }
@@ -162,7 +98,7 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ onPageChange }) => {
         
         <h1 className="text-3xl font-bold text-green-900 mb-4">🎉 تم الدفع بنجاح!</h1>
         <p className="text-green-800 text-lg mb-8">
-          تم تفعيل اشتراكاتك بنجاح. مرحباً بك في عائلة عملائنا!
+          تم الدفع وتفعيل اشتراكاتك بنجاح! مرحباً بك في عائلة عملائنا!
         </p>
 
         {/* Order Summary */}
@@ -173,12 +109,16 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ onPageChange }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <span className="text-gray-600">رقم الطلب:</span>
-                  <p className="font-bold text-gray-900">{orderDetails.orderId}</p>
+                  <p className="font-bold text-gray-900">{orderDetails.orderId || 'غير متوفر'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-600">معرف PayPal:</span>
+                  <p className="font-bold text-gray-900">{orderDetails.paypalTransactionId || 'غير متوفر'}</p>
                 </div>
                 <div>
                   <span className="text-gray-600">تاريخ الطلب:</span>
                   <p className="font-bold text-gray-900">
-                    {new Date(orderDetails.created_at).toLocaleDateString('ar-SA')}
+                    {orderDetails.created_at ? new Date(orderDetails.created_at).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
                   </p>
                 </div>
                 <div>

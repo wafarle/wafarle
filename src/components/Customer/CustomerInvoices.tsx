@@ -360,16 +360,11 @@ const CustomerInvoices: React.FC = () => {
                           </button>
                           {invoice.status !== 'paid' && (
                             <button
-                              onClick={() => handleGeneratePaymentLink(invoice)}
-                              disabled={generatingPayment === invoice.id}
+                              onClick={() => handlePayInvoice(invoice)}
                               className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded disabled:opacity-50"
-                              title="إنشاء رابط دفع"
+                              title="دفع الفاتورة"
                             >
-                              {generatingPayment === invoice.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CreditCard className="w-4 h-4" />
-                              )}
+                              <CreditCard className="w-4 h-4" />
                             </button>
                           )}
                         </div>

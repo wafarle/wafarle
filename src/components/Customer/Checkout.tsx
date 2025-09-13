@@ -12,9 +12,9 @@ import {
   Mail,
   MapPin
 } from 'lucide-react';
+import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { createPayPalPaymentLink, convertSARToUSD } from '../../lib/paypal';
 
 interface CartItem {
   product_id: string;
@@ -40,14 +40,13 @@ interface CheckoutProps {
 
 const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
   const { user } = useAuth();
+  const [{ isPending }] = usePayPalScriptReducer();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  const [step, setStep] = useState<'review' | 'customer' | 'payment' | 'success'>('review');
+  const [step, setStep] = useState<'review' | 'customer' | 'payment'>('review');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string>('');
-  const [orderId, setOrderId] = useState<string>('');
   
   const [customerForm, setCustomerForm] = useState({
     name: '',
@@ -112,6 +111,11 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const convertSARToUSD = (sarAmount: number): number => {
+    const exchangeRate = 0.2667; // سعر الصرف الحالي
+    return Math.round(sarAmount * exchangeRate * 100) / 100;
+  };
+
   const validateCustomerInfo = () => {
     if (!customerForm.name.trim()) {
       setError('الاسم مطلوب');
@@ -173,59 +177,92 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
     }
   };
 
-  const handlePayment = async () => {
-    if (!customerInfo) {
-      setError('بيانات العميل غير مكتملة');
-      return;
-    }
-
+  // معالجة نجاح الدفع
+  const handlePaymentSuccess = async (details: any, data: any) => {
     setProcessing(true);
-    setError(null);
-
+    
     try {
-      // تحويل المبلغ إلى دولار أمريكي
-      const totalSAR = getCartTotal();
-      const totalUSD = convertSARToUSD(totalSAR);
+      console.log('Payment successful:', details);
+      
+      if (!customerInfo) {
+        throw new Error('بيانات العميل غير متوفرة');
+      }
 
-      // إنشاء وصف للطلب
-      const orderDescription = `طلب اشتراكات - ${getCartItemsCount()} منتج - ${customerInfo.name}`;
-      const tempOrderId = `ORDER_${Date.now()}`;
+      // إنشاء الاشتراكات لكل منتج في السلة
+      for (const cartItem of cart) {
+        for (let i = 0; i < cartItem.quantity; i++) {
+          // حساب تواريخ الاشتراك
+          const startDate = new Date();
+          const endDate = new Date(startDate);
+          endDate.setMonth(endDate.getMonth() + cartItem.duration_months);
 
-      // إنشاء رابط الدفع
-      const paymentLink = await createPayPalPaymentLink(
-        totalUSD,
-        'USD',
-        orderDescription,
-        tempOrderId
-      );
+          // إنشاء الاشتراك
+          const { data: subscription, error: subscriptionError } = await supabase
+            .from('subscriptions')
+            .insert([{
+              customer_id: customerInfo.id,
+              pricing_tier_id: cartItem.pricing_tier_id,
+              start_date: startDate.toISOString().split('T')[0],
+              end_date: endDate.toISOString().split('T')[0],
+              status: 'active',
+              final_price: cartItem.price
+            }])
+            .select()
+            .single();
 
-      // حفظ بيانات الطلب في localStorage للمتابعة بعد الدفع
-      localStorage.setItem('pending_order', JSON.stringify({
-        orderId: tempOrderId,
+          if (subscriptionError) {
+            console.error('Error creating subscription:', subscriptionError);
+            continue;
+          }
+
+          // إنشاء فاتورة مدفوعة
+          await supabase
+            .from('invoices')
+            .insert([{
+              customer_id: customerInfo.id,
+              subscription_id: subscription.id,
+              amount: cartItem.price,
+              total_amount: cartItem.price,
+              status: 'paid',
+              issue_date: new Date().toISOString().split('T')[0],
+              due_date: new Date().toISOString().split('T')[0],
+              paid_date: new Date().toISOString().split('T')[0]
+            }]);
+        }
+      }
+
+      // حفظ تفاصيل الطلب
+      const orderDetails = {
+        orderId: data.orderID,
+        paypalTransactionId: details.id,
         customerId: customerInfo.id,
         cart: cart,
-        totalSAR: totalSAR,
-        totalUSD: totalUSD,
-        created_at: new Date().toISOString()
-      }));
+        totalSAR: getCartTotal(),
+        totalUSD: convertSARToUSD(getCartTotal()),
+        created_at: new Date().toISOString(),
+        paymentDetails: details
+      };
 
-      // توجيه المستخدم لصفحة الدفع
-      window.open(paymentLink, '_blank');
-      setPaymentUrl(paymentLink);
-      setOrderId(tempOrderId);
-      setStep('success');
+      localStorage.setItem('completed_order', JSON.stringify(orderDetails));
       
-    } catch (err) {
-      console.error('Error creating payment:', err);
-      setError('حدث خطأ في إنشاء رابط الدفع. يرجى المحاولة مرة أخرى.');
+      // مسح السلة
+      localStorage.removeItem('subscription_cart');
+      
+      // الانتقال لصفحة النجاح
+      onPageChange('payment-success');
+      
+    } catch (error) {
+      console.error('Error processing successful payment:', error);
+      setError('حدث خطأ في معالجة الدفع. يرجى التواصل مع الدعم الفني.');
     } finally {
       setProcessing(false);
     }
   };
 
-  const clearCart = () => {
-    localStorage.removeItem('subscription_cart');
-    setCart([]);
+  // معالجة فشل الدفع
+  const handlePaymentError = (error: any) => {
+    console.error('Payment failed:', error);
+    setError('فشل في عملية الدفع. يرجى المحاولة مرة أخرى.');
   };
 
   if (loading) {
@@ -266,16 +303,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
             }`}>
               3
             </div>
-            <span className="font-medium">الدفع</span>
-          </div>
-          
-          <div className={`flex items-center ${step === 'success' ? 'text-green-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-              step === 'success' ? 'bg-green-100' : 'bg-gray-100'
-            }`}>
-              ✓
-            </div>
-            <span className="font-medium">تأكيد</span>
+            <span className="font-medium">الدفع الآمن</span>
           </div>
         </div>
       </div>
@@ -316,7 +344,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
               <span className="text-green-600">ر.س {getCartTotal().toFixed(2)}</span>
             </div>
             <p className="text-sm text-green-700 mt-1">
-              (تقريباً ${convertSARToUSD(getCartTotal()).toFixed(2)} دولار أمريكي)
+              (${convertSARToUSD(getCartTotal()).toFixed(2)} دولار أمريكي)
             </p>
           </div>
 
@@ -453,9 +481,12 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
               <span>الإجمالي:</span>
               <span className="text-green-600">ر.س {getCartTotal().toFixed(2)}</span>
             </div>
+            <p className="text-sm text-gray-600 mt-2">
+              المبلغ بالدولار: ${convertSARToUSD(getCartTotal()).toFixed(2)} USD
+            </p>
           </div>
 
-          {/* Payment Method */}
+          {/* Payment Security Notice */}
           <div className="bg-blue-50 p-4 rounded-lg mb-6">
             <div className="flex items-center mb-3">
               <Lock className="w-5 h-5 text-blue-600 ml-2" />
@@ -464,89 +495,80 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
             <ul className="text-sm text-blue-800 space-y-1">
               <li>✓ دفع آمن ومحمي 100%</li>
               <li>✓ دفع مباشر بالفيزا أو الماستركارد</li>
-              <li>✓ لا تحتاج إنشاء حساب، أدخل بيانات البطاقة مباشرة</li>
+              <li>✓ لا تحتاج حساب PayPal، أدخل بيانات البطاقة مباشرة</li>
               <li>✓ حماية البيانات وتشفير عالي المستوى</li>
-              <li>✓ معالجة فورية ومؤكدة</li>
+              <li>✓ معالجة فورية وتفعيل تلقائي للخدمات</li>
             </ul>
           </div>
+
+          {/* PayPal Payment */}
+          <div className="mb-6">
+            {isPending && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                <span className="mr-2 text-gray-600">جاري تحميل خيارات الدفع...</span>
+              </div>
+            )}
+            
+            {!isPending && (
+              <PayPalButtons
+                style={{
+                  layout: "vertical",
+                  color: "blue",
+                  shape: "rect",
+                  label: "pay"
+                }}
+                createOrder={(data, actions) => {
+                  return actions.order.create({
+                    intent: "CAPTURE",
+                    purchase_units: [
+                      {
+                        amount: {
+                          currency_code: "USD",
+                          value: convertSARToUSD(getCartTotal()).toFixed(2),
+                        },
+                        description: `طلب اشتراكات - ${getCartItemsCount()} منتج - ${customerInfo?.name || 'عميل'}`
+                      },
+                    ],
+                  });
+                }}
+                onApprove={async (data, actions) => {
+                  if (!actions.order) return;
+                  
+                  try {
+                    const details = await actions.order.capture();
+                    await handlePaymentSuccess(details, data);
+                  } catch (error) {
+                    handlePaymentError(error);
+                  }
+                }}
+                onError={(error) => {
+                  handlePaymentError(error);
+                }}
+                onCancel={() => {
+                  console.log('Payment cancelled by user');
+                }}
+                disabled={processing}
+              />
+            )}
+          </div>
+
+          {processing && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-green-600 ml-2" />
+                <span className="text-green-800 font-medium">جاري معالجة الدفع وتفعيل الاشتراكات...</span>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-4">
             <button
               onClick={() => setStep('customer')}
-              className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+              disabled={processing}
+              className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
             >
               السابق
-            </button>
-            <button
-              onClick={handlePayment}
-              disabled={processing}
-              className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
-            >
-              {processing ? (
-                <Loader2 className="w-5 h-5 animate-spin ml-2" />
-              ) : (
-                <CreditCard className="w-5 h-5 ml-2" />
-              )}
-              {processing ? 'جاري توجيهك للدفع...' : `ادفع بالفيزا ر.س ${getCartTotal().toFixed(2)}`}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 4: Success */}
-      {step === 'success' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-green-600" />
-          </div>
-          
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">تم إنشاء الطلب بنجاح!</h2>
-          <p className="text-gray-600 mb-6">
-            تم توجيهك لصفحة الدفع. أكمل عملية الدفع لتفعيل اشتراكاتك.
-          </p>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center mb-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 ml-2" />
-              <h3 className="font-semibold text-yellow-900">تعليمات مهمة</h3>
-            </div>
-            <ul className="text-sm text-yellow-800 space-y-1 text-right">
-              <li>• أكمل عملية الدفع في النافذة الجديدة</li>
-              <li>• رقم الطلب: {orderId}</li>
-              <li>• بعد إتمام الدفع، سيتم تفعيل اشتراكاتك تلقائياً</li>
-              <li>• ستتلقى رسالة تأكيد على بريدك الإلكتروني</li>
-            </ul>
-          </div>
-
-          {paymentUrl && (
-            <div className="mb-6">
-              <a
-                href={paymentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-              >
-                <CreditCard className="w-5 h-5 ml-2" />
-                إعادة فتح صفحة الدفع
-              </a>
-            </div>
-          )}
-
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => {
-                clearCart();
-                onPageChange('store');
-              }}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              العودة للمتجر
-            </button>
-            <button
-              onClick={() => onPageChange('subscriptions')}
-              className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              عرض اشتراكاتي
             </button>
           </div>
         </div>

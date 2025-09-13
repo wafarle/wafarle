@@ -4,6 +4,7 @@ export interface Customer {
   name: string;
   email: string;
   phone: string;
+  phone_auth?: string;
   address: string;
   created_at: string;
   updated_at: string;

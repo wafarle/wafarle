@@ -46,16 +46,17 @@ const CustomerAccounts: React.FC = () => {
 
   // إنشاء حساب مصادقة للعميل
   const createCustomerAccount = async (customer: any) => {
-    if (!customer.email) {
-      alert('لا يمكن إنشاء حساب بدون بريد إلكتروني');
+    if (!customer.phone) {
+      alert('لا يمكن إنشاء حساب بدون رقم هاتف');
       return;
     }
 
     setProcessing(customer.id);
     
     try {
-      // إنشاء كلمة مرور مؤقتة
-      const tempPassword = '123456';
+      // تنظيف وتوحيد رقم الهاتف
+      const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
+      let normalizedPhone = cleanPhone;
       
       // تنظيف وتوحيد رقم الهاتف
       const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
@@ -66,27 +67,15 @@ const CustomerAccounts: React.FC = () => {
       } else if (cleanPhone.startsWith('5')) {
         normalizedPhone = '+966' + cleanPhone;
       } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
+      // تحويل إلى التنسيق الموحد
+      if (cleanPhone.startsWith('05')) {
+        normalizedPhone = '+966' + cleanPhone.substring(1);
+      } else if (cleanPhone.startsWith('5')) {
+        normalizedPhone = '+966' + cleanPhone;
+      } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
         normalizedPhone = '+' + cleanPhone;
-      }
-      
-      // إنشاء حساب المصادقة في Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          phone: normalizedPhone,
-          auth_type: 'phone',
-          customer_name: customer.name
-        }
-      });
-
-      if (authError) {
-        if (authError.message.includes('already registered')) {
-          setError('رقم الهاتف مسجل مسبقاً في النظام');
-          return;
-        }
-        throw authError;
+      } else if (cleanPhone.startsWith('+966')) {
+        normalizedPhone = cleanPhone;
       }
 
       // ربط العميل بحساب المصادقة
@@ -161,10 +150,10 @@ ${window.location.origin}
 
   // إنشاء حسابات لجميع العملاء بدون حسابات
   const createAllMissingAccounts = async () => {
-    const customersWithoutAccounts = customers.filter(c => !c.auth_user_id && c.email);
+    const customersWithoutAccounts = customers.filter(c => !c.auth_user_id && c.phone);
     
     if (customersWithoutAccounts.length === 0) {
-      alert('جميع العملاء لديهم حسابات بالفعل أو لا يوجد بريد إلكتروني');
+      alert('جميع العملاء لديهم حسابات بالفعل أو لا يوجد رقم هاتف');
       return;
     }
 
@@ -180,53 +169,107 @@ ${window.location.origin}
       try {
         setProcessing(customer.id);
         
-        const tempPassword = '123456';
+        // تنظيف وتوحيد رقم الهاتف
+        const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
+        let normalizedPhone = cleanPhone;
+        
+        // تحويل إلى التنسيق الموحد
+        if (cleanPhone.startsWith('05')) {
+          normalizedPhone = '+966' + cleanPhone.substring(1);
+        } else if (cleanPhone.startsWith('5')) {
+          normalizedPhone = '+966' + cleanPhone;
+        } else if (cleanPhone.startsWith('966') && !cleanPhone.startsWith('+')) {
+          normalizedPhone = '+' + cleanPhone;
+        } else if (cleanPhone.startsWith('+966')) {
+          normalizedPhone = cleanPhone;
+        }
         
         // إنشاء حساب المصادقة
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: customer.email,
-          password: tempPassword,
-          email_confirm: true
+          email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
+          password: '123456',
+          email_confirm: true,
+          user_metadata: {
+            phone: normalizedPhone,
+            auth_type: 'phone',
+            customer_name: customer.name
+          }
         });
 
         if (authError) {
           if (authError.message.includes('already registered')) {
-            // البحث عن المستخدم الموجود وربطه
-            const { data: existingUser } = await supabase.auth.admin.listUsers();
-            const existingAuthUser = existingUser.users.find(u => u.email === customer.email);
-            
-            if (existingAuthUser) {
-              await supabase
-                .from('customers')
-                .update({ auth_user_id: existingAuthUser.id })
-                .eq('id', customer.id);
-              successCount++;
-              continue;
-            }
+            failureCount++;
+            console.log(`Customer ${customer.name} phone already registered`);
+            continue;
           }
           throw authError;
         }
 
         // ربط العميل بحساب المصادقة
-        await supabase
+        const { error: linkError } = await supabase
           .from('customers')
-          .update({ auth_user_id: authData.user.id })
+          .update({ 
+            auth_user_id: authData.user.id,
+            phone_auth: normalizedPhone
+          })
           .eq('id', customer.id);
 
+        if (linkError) throw linkError;
+
         createdAccountsData[customer.id] = {
-          email: customer.email,
+          email: customer.phone, // حفظ رقم الهاتف
           password: '123456'
         };
 
         successCount++;
         
-        // انتظار قصير لتجنب rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-      } catch (error) {
-        console.error(`Error creating account for customer ${customer.id}:`, error);
-        failureCount++;
+      // التحقق من تكرار رقم الهاتف في المصادقة
+      // إنشاء حساب المصادقة في Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: `${normalizedPhone.replace(/[^0-9]/g, '')}@phone.auth`,
+        password: '123456',
+        email_confirm: true,
+        user_metadata: {
+          phone: normalizedPhone,
+          auth_type: 'phone',
+          customer_name: customer.name
+        }
+      });
+      if (checkError) throw checkError;
+      if (authError) {
+        if (authError.message.includes('already registered')) {
+          throw new Error('رقم الهاتف مسجل مسبقاً في النظام');
+        }
+        throw authError;
       }
+
+      // ربط العميل بحساب المصادقة
+      const { error: linkError } = await supabase
+        .from('customers')
+        .update({ 
+          auth_user_id: authData.user.id,
+          phone_auth: normalizedPhone
+        })
+        .eq('id', customer.id);
+
+      if (linkError) throw linkError;
+
+      // حفظ بيانات الحساب المُنشأ
+      setCreatedAccounts(prev => ({
+        ...prev,
+        [customer.id]: {
+          email: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
+          password: '123456'
+        }
+      }));
+
+      alert('✅ تم إنشاء حساب العميل بنجاح!');
+      
+        if (duplicate.id !== customer.id) {
+      console.error('Error creating customer account:', error);
+      alert(`❌ حدث خطأ: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+    } finally {
+      setProcessing(null);
     }
 
     setCreatedAccounts(prev => ({ ...prev, ...createdAccountsData }));

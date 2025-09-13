@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Code,
   Bell,
-  Clock
+  Clock,
+  User
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Notifications from './Notifications';
@@ -33,6 +34,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange }) 
     { id: 'dashboard', label: 'لوحة المراقبة', icon: BarChart3 },
     { id: 'products', label: 'المنتجات', icon: Package },
     { id: 'customers', label: 'العملاء', icon: Users },
+    { id: 'customer-accounts', label: 'حسابات العملاء', icon: User },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCard },
     { id: 'subscription-requests', label: 'طلبات الاشتراكات', icon: Clock },
     { id: 'invoices', label: 'الفواتير', icon: FileText },

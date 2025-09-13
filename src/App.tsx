@@ -26,6 +26,7 @@ import ApiPage from './components/ApiPage';
 import NotificationsPage from './components/NotificationsPage';
 import DailySalesCosts from './components/DailySalesCosts';
 import SubscriptionRequests from './components/SubscriptionRequests';
+import CustomerAccounts from './components/CustomerAccounts';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -119,6 +120,8 @@ const AppContent: React.FC = () => {
         return <Products />;
       case 'customers':
         return <Customers />;
+      case 'customer-accounts':
+        return <CustomerAccounts />;
       case 'subscriptions':
         return <Subscriptions />;
       case 'subscription-requests':

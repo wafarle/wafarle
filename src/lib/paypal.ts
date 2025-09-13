@@ -168,3 +168,40 @@ export const convertSARToUSD = (sarAmount: number): number => {
   const exchangeRate = 0.2667; // سعر الصرف الحالي (1 SAR = 0.2667 USD)
   return Math.round(sarAmount * exchangeRate * 100) / 100;
 };
+
+// إنشاء رسالة دفع للمشاركة
+export const generatePaymentMessage = async (
+  customerName: string,
+  invoiceNumber: string,
+  amount: number,
+  invoiceId: string
+): Promise<string> => {
+  try {
+    const usdAmount = convertSARToUSD(amount);
+    const paymentLink = await createPayPalPaymentLink(usdAmount, 'USD', `فاتورة #${invoiceNumber}`, invoiceId);
+    
+    const message = `
+🧾 فاتورة جديدة
+
+👤 العميل: ${customerName}
+📋 رقم الفاتورة: #${invoiceNumber}
+💰 المبلغ: ${amount.toFixed(2)} ريال سعودي (${usdAmount.toFixed(2)} دولار)
+
+💳 ادفع الآن بالفيزا أو الماستركارد:
+${paymentLink}
+
+✅ دفع آمن ومحمي 100%
+⚡ تفعيل فوري للخدمة بعد الدفع
+🔒 حماية البيانات وتشفير عالي المستوى
+
+📞 للاستفسار: +966123456789
+📧 البريد: team@wafarle.com
+
+شكراً لتعاملكم معنا 🙏
+    `.trim();
+    
+    return message;
+  } catch (error) {
+    throw new Error(`فشل في إنشاء رسالة الدفع: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+  }
+};

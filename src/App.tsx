@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -30,7 +30,48 @@ import SubscriptionRequests from './components/SubscriptionRequests';
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [userType, setUserType] = useState<'admin' | 'customer'>('admin');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // تحديد نوع المستخدم بناءً على URL
+  useEffect(() => {
+    const path = window.location.pathname;
+    setIsAdmin(path.startsWith('/admin'));
+    
+    // تحديث الصفحة الحالية بناءً على URL
+    if (path.startsWith('/admin')) {
+      const adminPage = path.replace('/admin', '') || '/dashboard';
+      setCurrentPage(adminPage.substring(1) || 'dashboard');
+    } else {
+      setCurrentPage(path.substring(1) || 'dashboard');
+    }
+  }, []);
+
+  // دالة تغيير الصفحة مع تحديث URL
+  const handlePageChange = (page: string) => {
+    setCurrentPage(page);
+    
+    const newPath = isAdmin ? `/admin/${page}` : `/${page}`;
+    window.history.pushState({}, '', page === 'dashboard' ? (isAdmin ? '/admin' : '/') : newPath);
+  };
+
+  // التعامل مع تغيير URL مباشرة
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const isAdminPath = path.startsWith('/admin');
+      setIsAdmin(isAdminPath);
+      
+      if (isAdminPath) {
+        const adminPage = path.replace('/admin', '') || '/dashboard';
+        setCurrentPage(adminPage.substring(1) || 'dashboard');
+      } else {
+        setCurrentPage(path.substring(1) || 'dashboard');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   if (loading) {
     return (
@@ -44,59 +85,33 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
-    return userType === 'admin' ? (
-      <div>
-        <AuthPage />
-        <div className="fixed bottom-4 right-4">
-          <button
-            onClick={() => setUserType('customer')}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-lg"
-          >
-            بوابة العملاء
-          </button>
-        </div>
-      </div>
-    ) : (
-      <div>
-        <CustomerAuthPage />
-        <div className="fixed bottom-4 right-4">
-          <button
-            onClick={() => setUserType('admin')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-          >
-            دخول الإدارة
-          </button>
-        </div>
-      </div>
-    );
+    return isAdmin ? <AuthPage /> : <CustomerAuthPage />;
   }
-
-  // التحقق من نوع المستخدم (يمكن تحسين هذا لاحقاً)
-  const isAdmin = userType === 'admin';
 
   const renderCustomerPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <CustomerDashboard onPageChange={setCurrentPage} />;
+        return <CustomerDashboard onPageChange={handlePageChange} />;
       case 'store':
-        return <Store onPageChange={setCurrentPage} />;
+        return <Store onPageChange={handlePageChange} />;
       case 'subscriptions':
-        return <CustomerSubscriptions onPageChange={setCurrentPage} />;
+        return <CustomerSubscriptions onPageChange={handlePageChange} />;
       case 'request-subscription':
-        return <SubscriptionRequest onPageChange={setCurrentPage} />;
+        return <SubscriptionRequest onPageChange={handlePageChange} />;
       case 'checkout':
-        return <Checkout onPageChange={setCurrentPage} />;
+        return <Checkout onPageChange={handlePageChange} />;
       case 'payment-success':
-        return <PaymentSuccess onPageChange={setCurrentPage} />;
+        return <PaymentSuccess onPageChange={handlePageChange} />;
       case 'invoices':
         return <CustomerInvoices />;
       case 'profile':
         return <CustomerProfile />;
       default:
-        return <CustomerDashboard onPageChange={setCurrentPage} />;
+        return <CustomerDashboard onPageChange={handlePageChange} />;
     }
   };
-  const renderCurrentPage = () => {
+
+  const renderAdminPage = () => {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
@@ -130,38 +145,12 @@ const AppContent: React.FC = () => {
   return (
     <ErrorBoundary>
       {isAdmin ? (
-        <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-          <div className="relative">
-            {renderCurrentPage()}
-            <div className="fixed bottom-4 left-4">
-              <button
-                onClick={() => setUserType('customer')}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-lg flex items-center"
-              >
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
-                بوابة العملاء
-              </button>
-            </div>
-          </div>
+        <Layout currentPage={currentPage} onPageChange={handlePageChange}>
+          {renderAdminPage()}
         </Layout>
       ) : (
-        <CustomerLayout currentPage={currentPage} onPageChange={setCurrentPage}>
-          <div className="relative">
-            {renderCustomerPage()}
-            <div className="fixed bottom-4 left-4">
-              <button
-                onClick={() => setUserType('admin')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center"
-              >
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                لوحة الإدارة
-              </button>
-            </div>
-          </div>
+        <CustomerLayout currentPage={currentPage} onPageChange={handlePageChange}>
+          {renderCustomerPage()}
         </CustomerLayout>
       )}
     </ErrorBoundary>

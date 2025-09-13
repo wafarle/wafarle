@@ -42,59 +42,109 @@ const CustomerProfile: React.FC = () => {
   }, [user]);
 
   const fetchProfile = async () => {
-    if (!user?.email && !user?.phone) return;
+    if (!user?.email && !user?.phone && !user?.user_metadata?.phone) {
+      console.log('No user identification available for profile');
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
-      let data = null;
-      let error = null;
+      console.log('Fetching profile for user:', { email: user?.email, phone: user?.phone, metadata: user?.user_metadata });
       
-      // البحث بالبريد الإلكتروني أولاً
-      if (user.email) {
-        const result = await supabase
+      let data = null;
+      
+      // البحث بمعرف المصادقة أولاً
+      if (user.id) {
+        const { data: authData } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        
+        if (authData) {
+          data = authData;
+        }
+      }
+      
+      // البحث بالبريد الإلكتروني
+      if (!data && user.email) {
+        const { data: emailData } = await supabase
           .from('customers')
           .select('*')
           .eq('email', user.email)
           .maybeSingle();
         
-        data = result.data;
-        error = result.error;
+        if (emailData) {
+          data = emailData;
+        }
+      }
+
+      // البحث برقم الهاتف
+      if (!data) {
+        const phoneNumbers = [
+          user.phone,
+          user.user_metadata?.phone
+        ].filter(Boolean);
+        
+        for (const phoneNumber of phoneNumbers) {
+          if (data) break;
+          
+          // البحث في phone_auth
+          const { data: phoneAuthData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('phone_auth', phoneNumber)
+            .maybeSingle();
+          
+          if (phoneAuthData) {
+            data = phoneAuthData;
+            break;
+          }
+          
+          // البحث في phone العادي
+          const { data: phoneData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('phone', phoneNumber)
+            .maybeSingle();
+          
+          if (phoneData) {
+            data = phoneData;
+            break;
+          }
+        }
       }
       
-      // إذا لم يتم العثور على العميل بالبريد، ابحث برقم الهاتف
-      if (!data && user.phone) {
-        const result = await supabase
-          .from('customers')
-          .select('*')
-          .eq('phone_auth', user.phone)
-          .maybeSingle();
+      console.log('Profile data found:', data);
+
+      if (!data) {
+        // العميل غير موجود، إنشاء ملف تعريفي جديد
+        const newCustomerData = {
+          name: user?.user_metadata?.customer_name || user?.email?.split('@')[0] || 'عميل جديد',
+          email: user?.email || '',
+          phone: user?.phone || user?.user_metadata?.phone || '',
+          phone_auth: user?.phone || user?.user_metadata?.phone || null,
+          address: '',
+          auth_user_id: user.id
+        };
         
-        data = result.data;
-        error = result.error;
-      }
+        console.log('Creating new customer:', newCustomerData);
+        
+        const { data: newProfile, error: createError } = await supabase
+          .from('customers')
+          .insert([newCustomerData])
+          .select()
+          .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // العميل غير موجود، إنشاء ملف تعريفي جديد
-          const { data: newProfile, error: createError } = await supabase
-            .from('customers')
-            .insert([{
-              name: user.user_metadata?.customer_name || user.email?.split('@')[0] || user.phone || 'عميل جديد',
-              email: user.email || '',
-              phone: '',
-              phone_auth: user.phone || '',
-              address: ''
-            }])
-            .select()
-            .single();
-
-          if (createError) throw createError;
-          setProfile(newProfile);
-        } else {
-          throw error;
+        if (createError) {
+          console.error('Error creating customer profile:', createError);
+          throw createError;
         }
+        
+        setProfile(newProfile);
+        data = newProfile;
       } else {
         setProfile(data);
       }

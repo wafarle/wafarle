@@ -47,42 +47,86 @@ const CustomerInvoices: React.FC = () => {
   }, [user]);
 
   const fetchInvoices = async () => {
-    if (!user?.email && !user?.phone) return;
+    if (!user?.email && !user?.phone && !user?.user_metadata?.phone) {
+      console.log('No user identification available for invoices');
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
-      // البحث عن العميل
-      let customer = null;
-      let customerError = null;
+      console.log('Fetching invoices for user:', { email: user?.email, phone: user?.phone, metadata: user?.user_metadata });
       
-      // البحث بالبريد الإلكتروني أولاً
-      if (user.email) {
-        const { data, error } = await supabase
+      // البحث عن العميل بطرق متعددة
+      let customer = null;
+      
+      // البحث بمعرف المصادقة أولاً
+      if (user.id) {
+        const { data } = await supabase
+          .from('customers')
+          .select('id, name')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        
+        if (data) {
+          customer = data;
+        }
+      }
+      
+      // البحث بالبريد الإلكتروني
+      if (!customer && user.email) {
+        const { data } = await supabase
           .from('customers')
           .select('id, name')
           .eq('email', user.email)
           .maybeSingle();
         
-        customer = data;
-        customerError = error;
-      }
-      
-      // إذا لم يتم العثور على العميل بالبريد، ابحث برقم الهاتف
-      if (!customer && user.phone) {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('id, name')
-          .eq('phone_auth', user.phone)
-          .maybeSingle();
-        
-        customer = data;
-        customerError = error;
+        if (data) {
+          customer = data;
+        }
       }
 
-      if (customerError) {
-        setError('لم يتم العثور على بيانات العميل');
+      // البحث برقم الهاتف
+      if (!customer) {
+        const phoneNumbers = [
+          user.phone,
+          user.user_metadata?.phone
+        ].filter(Boolean);
+        
+        for (const phoneNumber of phoneNumbers) {
+          if (customer) break;
+          
+          // البحث في phone_auth
+          const { data: phoneAuthData } = await supabase
+            .from('customers')
+            .select('id, name')
+            .eq('phone_auth', phoneNumber)
+            .maybeSingle();
+          
+          if (phoneAuthData) {
+            customer = phoneAuthData;
+            break;
+          }
+          
+          // البحث في phone العادي
+          const { data: phoneData } = await supabase
+            .from('customers')
+            .select('id, name')
+            .eq('phone', phoneNumber)
+            .maybeSingle();
+          
+          if (phoneData) {
+            customer = phoneData;
+            break;
+          }
+        }
+      }
+      
+      console.log('Customer found:', customer);
+      
+      if (!customer) {
+        setError('لم يتم العثور على بيانات العميل في النظام');
         return;
       }
 

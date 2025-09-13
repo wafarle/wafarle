@@ -45,43 +45,132 @@ const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ onPageChange }) =
   }, [user]);
 
   const fetchCustomerData = async () => {
-    if (!user?.email && !user?.phone) return;
+    if (!user?.email && !user?.phone && !user?.user_metadata?.phone) {
+      console.log('No user identification available:', { email: user?.email, phone: user?.phone, metadata: user?.user_metadata });
+      return;
+    }
 
     try {
       setLoading(true);
       
-      // البحث عن بيانات العميل
-      let customer = null;
-      let customerError = null;
+      console.log('User data:', { 
+        email: user?.email, 
+        phone: user?.phone, 
+        user_metadata: user?.user_metadata,
+        app_metadata: user?.app_metadata 
+      });
       
-      // البحث بالبريد الإلكتروني أولاً
-      if (user.email) {
-        const { data, error } = await supabase
+      // البحث عن بيانات العميل بطرق متعددة
+      let customer = null;
+      let searchMethods = [];
+      
+      // البحث بمعرف المصادقة (auth_user_id)
+      if (user.id) {
+        searchMethods.push('auth_user_id');
+        const { data } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        
+        if (data) {
+          customer = data;
+          console.log('Found customer by auth_user_id:', customer);
+        }
+      }
+
+      // البحث بالبريد الإلكتروني
+      if (!customer && user.email) {
+        searchMethods.push('email');
+        const { data } = await supabase
           .from('customers')
           .select('id')
           .eq('email', user.email)
           .maybeSingle();
         
-        customer = data;
-        customerError = error;
+        if (data) {
+          customer = data;
+          console.log('Found customer by email:', customer);
+        }
       }
       
-      // إذا لم يتم العثور على العميل بالبريد، ابحث برقم الهاتف
-      if (!customer && user.phone) {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('phone_auth', user.phone)
-          .maybeSingle();
+      // البحث برقم الهاتف (جرب عدة تنسيقات)
+      if (!customer && (user.phone || user.user_metadata?.phone)) {
+        const phoneNumbers = [
+          user.phone,
+          user.user_metadata?.phone,
+          user.phone && normalizePhone(user.phone),
+          user.user_metadata?.phone && normalizePhone(user.user_metadata.phone)
+        ].filter(Boolean);
         
-        customer = data;
-        customerError = error;
+        for (const phoneNumber of phoneNumbers) {
+          if (customer) break;
+          
+          searchMethods.push(`phone_auth:${phoneNumber}`);
+          const { data } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('phone_auth', phoneNumber)
+            .maybeSingle();
+          
+          if (data) {
+            customer = data;
+            console.log('Found customer by phone_auth:', customer, 'using:', phoneNumber);
+            break;
+          }
+        }
+        
+        // البحث برقم الهاتف العادي أيضاً
+        if (!customer) {
+          for (const phoneNumber of phoneNumbers) {
+            if (customer) break;
+            
+            searchMethods.push(`phone:${phoneNumber}`);
+            const { data } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('phone', phoneNumber)
+              .maybeSingle();
+            
+            if (data) {
+              customer = data;
+              console.log('Found customer by phone:', customer, 'using:', phoneNumber);
+              break;
+            }
+          }
+        }
       }
-
-      if (customerError) {
-        console.error('Customer not found:', customerError);
-        setError('لم يتم العثور على بيانات العميل');
-        return;
+      
+      console.log('Search methods tried:', searchMethods);
+      console.log('Final customer result:', customer);
+      
+      if (!customer) {
+        console.log('Customer not found, creating new customer...');
+        
+        // إنشاء عميل جديد إذا لم يوجد
+        const newCustomerData = {
+          name: user.user_metadata?.customer_name || user.email?.split('@')[0] || 'عميل جديد',
+          email: user.email || '',
+          phone: user.phone || user.user_metadata?.phone || '',
+          phone_auth: user.phone || user.user_metadata?.phone || null,
+          address: '',
+          auth_user_id: user.id
+        };
+        
+        const { data: newCustomer, error: createError } = await supabase
+          .from('customers')
+          .insert([newCustomerData])
+          .select('id')
+          .single();
+        
+        if (createError) {
+          console.error('Error creating customer:', createError);
+          setError(`خطأ في إنشاء بيانات العميل: ${createError.message}`);
+          return;
+        }
+        
+        customer = newCustomer;
+        console.log('Created new customer:', customer);
       }
 
       // جلب الاشتراكات

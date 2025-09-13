@@ -168,64 +168,3 @@ export const convertSARToUSD = (sarAmount: number): number => {
   const exchangeRate = 0.2667; // سعر الصرف الحالي (1 SAR = 0.2667 USD)
   return Math.round(sarAmount * exchangeRate * 100) / 100;
 };
-
-// إنشاء رسالة دفع مع رابط PayPal
-export const generatePaymentMessage = async (
-  customerName: string,
-  invoiceNumber: string,
-  amountSAR: number,
-  invoiceId: string
-): Promise<string> => {
-  try {
-    console.log('Generating payment message for:', customerName, invoiceNumber, amountSAR);
-    const amountUSD = convertSARToUSD(amountSAR);
-    console.log('Converted amount:', amountSAR, 'SAR to', amountUSD, 'USD');
-    
-    const paypalLink = await createPayPalPaymentLink(
-      amountUSD,
-      'USD',
-      `Invoice #${invoiceNumber} - wafarle`,
-      invoiceId
-    );
-
-    return `مرحباً ${customerName}،
-
-نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amountSAR.toFixed(2)} ريال سعودي (${amountUSD.toFixed(2)} دولار أمريكي).
-
-يمكنك الدفع بالفيزا أو الماستركارد عبر الرابط التالي:
-${paypalLink}
-
-💳 الدفع المباشر بالفيزا/ماستركارد
-🔒 آمن ومحمي 100% عبر PayPal
-⚡ أدخل بيانات بطاقتك مباشرة
-🌍 يقبل جميع البطاقات الائتمانية العالمية
-
-شكراً لك على ثقتك بنا.
-
-مع أطيب التحيات،
-فريق wafarle
-📧 team@wafarle.com
-📱 +966123456789`;
-  } catch (error) {
-    console.error('Error generating payment message:', error);
-    
-    // في حالة فشل PayPal API، استخدم رابط بديل مع معلومات الدفع
-    const amountUSD = convertSARToUSD(amountSAR);
-    const fallbackLink = `https://www.paypal.com/paypalme/wafarle/${amountUSD.toFixed(2)}USD`;
-    
-    return `مرحباً ${customerName}،
-
-نأمل أن تكون بخير. نود تذكيرك بفاتورة رقم #${invoiceNumber} بمبلغ ${amountSAR.toFixed(2)} ريال سعودي.
-
-يمكنك الدفع بالفيزا أو PayPal عبر الرابط التالي:
-${fallbackLink}
-
-💳 دفع مباشر بالفيزا/ماستركارد
-🔒 آمن ومحمي
-
-شكراً لك على ثقتك بنا.
-
-مع أطيب التحيات،
-فريق wafarle`;
-  }
-};

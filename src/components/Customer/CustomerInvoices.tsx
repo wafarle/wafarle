@@ -360,11 +360,16 @@ const CustomerInvoices: React.FC = () => {
                           </button>
                           {invoice.status !== 'paid' && (
                             <button
-                              onClick={() => handlePayInvoice(invoice)}
+                              onClick={() => handleGeneratePaymentLink(invoice)}
+                              disabled={generatingPayment === invoice.id}
                               className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded disabled:opacity-50"
-                              title="دفع الفاتورة"
+                              title="إنشاء رابط دفع"
                             >
-                              <CreditCard className="w-4 h-4" />
+                              {generatingPayment === invoice.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CreditCard className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                         </div>
@@ -494,26 +499,20 @@ const CustomerInvoices: React.FC = () => {
               {/* Payment Action */}
               {selectedInvoice.status !== 'paid' && (
                 <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-yellow-900">الدفع الإلكتروني</h4>
-                      <p className="text-yellow-800 text-sm">
-                        ادفع بالفيزا أو الماستركارد مباشرة - آمن وسريع
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleGeneratePaymentLink(selectedInvoice)}
-                      disabled={generatingPayment === selectedInvoice.id}
-                      className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 flex items-center"
-                    >
-                      {generatingPayment === selectedInvoice.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                      ) : (
-                        <CreditCard className="w-4 h-4 ml-2" />
-                      )}
-                      إنشاء رابط دفع
-                    </button>
-                  </div>
+                  <h4 className="font-medium text-yellow-900 mb-2">الدفع الإلكتروني</h4>
+                  <p className="text-yellow-800 text-sm mb-3">
+                    ادفع بالفيزا أو الماستركارد مباشرة - آمن وسريع
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      handlePayInvoice(selectedInvoice);
+                    }}
+                    className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center"
+                  >
+                    <CreditCard className="w-4 h-4 ml-2" />
+                    ادفع الآن بالفيزا
+                  </button>
                 </div>
               )}
             </div>
@@ -528,6 +527,111 @@ const CustomerInvoices: React.FC = () => {
                   إغلاق
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && payingInvoice && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">دفع الفاتورة</h2>
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setPayingInvoice(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {/* Invoice Summary */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <h3 className="font-semibold text-gray-900 mb-3">تفاصيل الفاتورة</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>رقم الفاتورة:</span>
+                    <span>#{payingInvoice.id.slice(-8)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>المنتج:</span>
+                    <span>{payingInvoice.subscription?.pricing_tier?.product?.name || 'غير محدد'}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>المبلغ:</span>
+                    <span className="text-green-600">ر.س {Number(payingInvoice.total_amount || payingInvoice.amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>بالدولار:</span>
+                    <span>${convertSARToUSD(Number(payingInvoice.total_amount || payingInvoice.amount)).toFixed(2)} USD</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Security Notice */}
+              <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                <div className="flex items-center mb-2">
+                  <Lock className="w-5 h-5 text-blue-600 ml-2" />
+                  <h4 className="font-semibold text-blue-900">الدفع الآمن</h4>
+                </div>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>✓ دفع آمن ومحمي 100%</li>
+                  <li>✓ دفع مباشر بالفيزا أو الماستركارد</li>
+                  <li>✓ لا تحتاج حساب PayPal</li>
+                  <li>✓ حماية البيانات وتشفير عالي المستوى</li>
+                </ul>
+              </div>
+
+              {/* PayPal Payment Buttons */}
+              <PayPalButtons
+                style={{
+                  layout: "vertical",
+                  color: "blue",
+                  shape: "rect",
+                  label: "pay"
+                }}
+                createOrder={(data, actions) => {
+                  return actions.order.create({
+                    intent: "CAPTURE",
+                    purchase_units: [
+                      {
+                        amount: {
+                          currency_code: "USD",
+                          value: convertSARToUSD(Number(payingInvoice.total_amount || payingInvoice.amount)).toFixed(2),
+                        },
+                        description: `فاتورة #${payingInvoice.id.slice(-8)} - ${payingInvoice.subscription?.pricing_tier?.product?.name || 'wafarle'}`
+                      },
+                    ],
+                  });
+                }}
+                onApprove={async (data, actions) => {
+                  if (!actions.order) return;
+                  
+                  try {
+                    const details = await actions.order.capture();
+                    await handlePaymentSuccess(details, payingInvoice);
+                  } catch (error) {
+                    console.error('Payment error:', error);
+                    alert('❌ حدث خطأ في معالجة الدفع');
+                  }
+                }}
+                onError={(error) => {
+                  console.error('PayPal error:', error);
+                  alert('❌ حدث خطأ في نظام الدفع');
+                }}
+                onCancel={() => {
+                  console.log('Payment cancelled by user');
+                }}
+              />
             </div>
           </div>
         </div>

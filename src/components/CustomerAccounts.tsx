@@ -55,7 +55,7 @@ const CustomerAccounts: React.FC = () => {
     
     try {
       // إنشاء كلمة مرور مؤقتة
-      const tempPassword = `${customer.name.replace(/\s+/g, '')}${Math.floor(Math.random() * 1000)}`;
+      const tempPassword = '123456';
       
       // تنظيف وتوحيد رقم الهاتف
       const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
@@ -105,7 +105,7 @@ const CustomerAccounts: React.FC = () => {
         ...prev,
         [customer.id]: {
           email: customer.phone, // حفظ رقم الهاتف بدلاً من الإيميل
-          password: tempPassword
+          password: '123456'
         }
       }));
 
@@ -130,7 +130,7 @@ const CustomerAccounts: React.FC = () => {
 
 👤 العميل: ${customer?.name}
 📱 رقم الهاتف: ${account.email}
-🔑 كلمة المرور المؤقتة: ${account.password}
+🔑 كلمة المرور: 123456
 
 🌐 رابط بوابة العملاء:
 ${window.location.origin}
@@ -139,12 +139,12 @@ ${window.location.origin}
 1. افتح الرابط أعلاه
 2. اختر "تسجيل الدخول"
 3. أدخل رقم الهاتف وكلمة المرور
-4. يُنصح بتغيير كلمة المرور بعد أول تسجيل دخول
+4. كلمة المرور الموحدة: 123456
 
-🛡️ ملاحظة أمنية:
-- هذه كلمة مرور مؤقتة
-- يجب تغييرها عند أول استخدام
+🛡️ ملاحظة:
+- كلمة المرور الموحدة: 123456
 - رقم الهاتف هو اسم المستخدم الخاص بك
+- يمكنك تغيير كلمة المرور من الملف الشخصي
 
 📞 للدعم: +966123456789
 📧 البريد: support@wafarle.com
@@ -180,7 +180,7 @@ ${window.location.origin}
       try {
         setProcessing(customer.id);
         
-        const tempPassword = `temp${Math.floor(Math.random() * 10000)}`;
+        const tempPassword = '123456';
         
         // إنشاء حساب المصادقة
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -215,7 +215,7 @@ ${window.location.origin}
 
         createdAccountsData[customer.id] = {
           email: customer.email,
-          password: tempPassword
+          password: '123456'
         };
 
         successCount++;

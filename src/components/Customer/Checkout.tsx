@@ -459,13 +459,14 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
           <div className="bg-blue-50 p-4 rounded-lg mb-6">
             <div className="flex items-center mb-3">
               <Lock className="w-5 h-5 text-blue-600 ml-2" />
-              <h3 className="font-semibold text-blue-900">الدفع الآمن عبر PayPal</h3>
+              <h3 className="font-semibold text-blue-900">الدفع الآمن بالفيزا/ماستركارد</h3>
             </div>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>✓ دفع آمن ومحمي 100%</li>
-              <li>✓ قبول جميع أنواع البطاقات الائتمانية</li>
-              <li>✓ لا تحتاج إنشاء حساب PayPal</li>
-              <li>✓ حماية المشتري مضمونة</li>
+              <li>✓ دفع مباشر بالفيزا أو الماستركارد</li>
+              <li>✓ لا تحتاج إنشاء حساب، أدخل بيانات البطاقة مباشرة</li>
+              <li>✓ حماية البيانات وتشفير عالي المستوى</li>
+              <li>✓ معالجة فورية ومؤكدة</li>
             </ul>
           </div>
 
@@ -486,7 +487,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
               ) : (
                 <CreditCard className="w-5 h-5 ml-2" />
               )}
-              {processing ? 'جاري إنشاء الدفع...' : `ادفع ر.س ${getCartTotal().toFixed(2)}`}
+              {processing ? 'جاري توجيهك للدفع...' : `ادفع بالفيزا ر.س ${getCartTotal().toFixed(2)}`}
             </button>
           </div>
         </div>

@@ -89,6 +89,19 @@ export const createPayPalPaymentLink = async (
     
     const paymentData = {
       intent: 'CAPTURE',
+      payment_source: {
+        paypal: {
+          experience_context: {
+            payment_method_preference: 'IMMEDIATE_PAYMENT_REQUIRED',
+            payment_method_selected: 'PAYPAL',
+            brand_name: 'wafarle',
+            locale: 'ar-SA',
+            landing_page: 'GUEST_CHECKOUT',
+            shipping_preference: 'NO_SHIPPING',
+            user_action: 'PAY_NOW'
+          }
+        }
+      },
       purchase_units: [{
         reference_id: invoiceId,
         description: description,
@@ -99,9 +112,13 @@ export const createPayPalPaymentLink = async (
       }],
       application_context: {
         brand_name: 'wafarle',
-        landing_page: 'BILLING',
+        landing_page: 'LOGIN',
         user_action: 'PAY_NOW',
-        shipping_preference: 'NO_SHIPPING',
+        shipping_preference: 'NO_SHIPPING', 
+        payment_method: {
+          payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED',
+          payer_selected: 'PAYPAL'
+        },
         return_url: `${window.location.origin}/payment/success`,
         cancel_url: `${window.location.origin}/payment/cancel`
       }
@@ -177,7 +194,7 @@ ${paypalLink}
 
 💳 الدفع المباشر بالفيزا/ماستركارد
 🔒 آمن ومحمي 100% عبر PayPal
-⚡ لا تحتاج إنشاء حساب PayPal
+⚡ أدخل بيانات بطاقتك مباشرة
 🌍 يقبل جميع البطاقات الائتمانية العالمية
 
 شكراً لك على ثقتك بنا.

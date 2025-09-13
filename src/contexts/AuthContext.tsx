@@ -81,11 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return { error };
     }
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { error };
   };
 
   const signIn = async (emailOrPhone: string, password: string, isPhone: boolean = false) => {
@@ -117,11 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return { error };
     }
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
   };
 
   const signOut = async () => {

@@ -8,6 +8,9 @@ import CustomerDashboard from './components/Customer/CustomerDashboard';
 import CustomerSubscriptions from './components/Customer/CustomerSubscriptions';
 import CustomerInvoices from './components/Customer/CustomerInvoices';
 import SubscriptionRequest from './components/Customer/SubscriptionRequest';
+import Store from './components/Customer/Store';
+import Checkout from './components/Customer/Checkout';
+import PaymentSuccess from './components/Customer/PaymentSuccess';
 import CustomerProfile from './components/Customer/CustomerProfile';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -74,10 +77,16 @@ const AppContent: React.FC = () => {
     switch (currentPage) {
       case 'dashboard':
         return <CustomerDashboard onPageChange={setCurrentPage} />;
+      case 'store':
+        return <Store onPageChange={setCurrentPage} />;
       case 'subscriptions':
         return <CustomerSubscriptions onPageChange={setCurrentPage} />;
       case 'request-subscription':
         return <SubscriptionRequest onPageChange={setCurrentPage} />;
+      case 'checkout':
+        return <Checkout onPageChange={setCurrentPage} />;
+      case 'payment-success':
+        return <PaymentSuccess onPageChange={setCurrentPage} />;
       case 'invoices':
         return <CustomerInvoices />;
       case 'profile':

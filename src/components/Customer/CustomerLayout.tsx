@@ -11,7 +11,8 @@ import {
   ShoppingCart,
   Bell,
   Home,
-  Phone
+  Phone,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -27,8 +28,10 @@ const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children, currentPage, 
 
   const menuItems = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: Home },
+    { id: 'store', label: 'متجر الاشتراكات', icon: ShoppingCart },
     { id: 'subscriptions', label: 'اشتراكاتي', icon: Package },
-    { id: 'request-subscription', label: 'طلب اشتراك جديد', icon: ShoppingCart },
+    { id: 'request-subscription', label: 'طلب اشتراك تقليدي', icon: Clock },
+    { id: 'checkout', label: 'إتمام الشراء', icon: CreditCard },
     { id: 'invoices', label: 'فواتيري', icon: FileText },
     { id: 'profile', label: 'الملف الشخصي', icon: User },
   ];

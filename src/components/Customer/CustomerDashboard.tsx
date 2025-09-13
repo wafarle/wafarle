@@ -322,11 +322,11 @@ const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ onPageChange }) =
         <h3 className="text-lg font-semibold text-gray-900 mb-6">إجراءات سريعة</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button 
-            onClick={() => onPageChange('request-subscription')}
+            onClick={() => onPageChange('store')}
             className="bg-gradient-to-r from-green-500 to-green-600 text-white py-4 px-6 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center shadow-lg"
           >
             <ShoppingCart className="w-5 h-5 ml-2" />
-            طلب اشتراك جديد
+            تسوق الاشتراكات
           </button>
           <button 
             onClick={() => onPageChange('subscriptions')}
@@ -396,10 +396,10 @@ const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ onPageChange }) =
               نحن سعداء بانضمامك إلينا. ابدأ رحلتك معنا بطلب أول اشتراك.
             </p>
             <button 
-              onClick={() => onPageChange('request-subscription')}
+              onClick={() => onPageChange('store')}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
-              استكشف خدماتنا
+              تسوق الاشتراكات
             </button>
           </div>
         </div>

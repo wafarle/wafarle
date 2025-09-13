@@ -401,7 +401,6 @@ ${window.location.origin}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2 space-x-reverse">
-                        {!hasAccount && customer.email ? (
                         {!hasAccount && customer.phone ? (
                           <button
                             onClick={() => createCustomerAccount(customer)}

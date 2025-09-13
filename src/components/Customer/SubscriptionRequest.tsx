@@ -191,6 +191,8 @@ const SubscriptionRequest: React.FC<SubscriptionRequestProps> = ({ onPageChange 
           <div className="bg-white p-4 rounded-lg border border-green-200 mb-6">
             <h3 className="font-semibold text-green-900 mb-2">تفاصيل الطلب:</h3>
             <div className="space-y-2 text-sm text-green-800">
+              <p><strong>العميل:</strong> {customer?.name}</p>
+              <p><strong>الهاتف:</strong> {customer?.phone || customer?.phone_auth}</p>
               <p><strong>المنتج:</strong> {selectedProduct?.name}</p>
               <p><strong>الباقة:</strong> {selectedTier?.name}</p>
               <p><strong>السعر:</strong> ر.س {selectedTier?.price}</p>

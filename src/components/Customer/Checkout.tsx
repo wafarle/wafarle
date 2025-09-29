@@ -6,6 +6,7 @@ import {
   Loader2, 
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Lock,
   User,
   Phone,
@@ -50,6 +51,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
   
   const [customerForm, setCustomerForm] = useState({
     name: '',
+    email: '',
     phone: '',
     address: ''
   });
@@ -127,14 +129,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
         setCustomerInfo(data);
         setCustomerForm({
           name: data.name || '',
+          email: data.email || '',
           phone: data.phone || '',
           address: data.address || ''
         });
-        
-        // إذا كانت البيانات متوفرة، انتقل مباشرة للدفع
-        if (data.name && data.phone) {
-          setStep('payment');
-        }
       } else {
         // إنشاء عميل جديد إذا لم يوجد
         const newCustomerData = {
@@ -158,14 +156,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
           setCustomerInfo(newCustomer);
           setCustomerForm({
             name: newCustomer.name || '',
+            email: newCustomer.email || '',
             phone: newCustomer.phone || '',
             address: newCustomer.address || ''
           });
-          
-          // إذا كانت البيانات الأساسية متوفرة، انتقل للدفع
-          if (newCustomer.name && (newCustomer.phone || newCustomer.phone_auth)) {
-            setStep('payment');
-          }
         }
       }
     } catch (err) {
@@ -191,10 +185,24 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
       setError('الاسم مطلوب');
       return false;
     }
+    if (!customerForm.email.trim()) {
+      setError('البريد الإلكتروني مطلوب');
+      return false;
+    }
+    
+    // التحقق من صحة البريد الإلكتروني
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerForm.email.trim())) {
+      setError('البريد الإلكتروني غير صحيح');
+      return false;
+    }
+    
     if (!customerForm.phone.trim()) {
       setError('رقم الهاتف مطلوب');
       return false;
     }
+    
+    setError(null);
     return true;
   };
 
@@ -211,6 +219,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
           .from('customers')
           .update({
             name: customerForm.name.trim(),
+            email: customerForm.email.trim(),
             phone: customerForm.phone.trim(),
             address: customerForm.address.trim()
           })
@@ -226,9 +235,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
           .from('customers')
           .insert([{
             name: customerForm.name.trim(),
-            email: user?.email || '',
+            email: customerForm.email.trim(),
             phone: customerForm.phone.trim(),
             address: customerForm.address.trim()
+            auth_user_id: user?.id || null
           }])
           .select()
           .single();
@@ -392,7 +402,37 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">مراجعة طلبك</h2>
           
-          {/* عرض بيانات العميل المحفوظة */}
+          {/* Cart Items */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">منتجاتك المختارة</h3>
+            <div className="space-y-4">
+              {cart.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{item.product_name}</h4>
+                    <p className="text-sm text-gray-600">{item.tier_name} - {item.duration_months} شهر</p>
+                    <p className="text-sm text-gray-500">الكمية: {item.quantity}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-green-600">ر.س {(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-sm text-gray-500">ر.س {item.price} × {item.quantity}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="bg-green-50 p-4 rounded-lg mt-4">
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>الإجمالي:</span>
+                <span className="text-green-600">ر.س {getCartTotal().toFixed(2)}</span>
+              </div>
+              <p className="text-sm text-green-700 mt-1">
+                (${convertSARToUSD(getCartTotal()).toFixed(2)} دولار أمريكي)
+              </p>
+            </div>
+          </div>
+
+          {/* عرض بيانات العميل المحفوظة إذا كانت متوفرة */}
           {customerInfo && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <div className="flex items-center mb-2">
@@ -426,32 +466,6 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
               </p>
             </div>
           )}
-          
-          <div className="space-y-4 mb-6">
-            {cart.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <h3 className="font-medium text-gray-900">{item.product_name}</h3>
-                  <p className="text-sm text-gray-600">{item.tier_name} - {item.duration_months} شهر</p>
-                  <p className="text-sm text-gray-500">الكمية: {item.quantity}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-green-600">ر.س {(item.price * item.quantity).toFixed(2)}</p>
-                  <p className="text-sm text-gray-500">ر.س {item.price} × {item.quantity}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-green-50 p-4 rounded-lg mb-6">
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>الإجمالي:</span>
-              <span className="text-green-600">ر.س {getCartTotal().toFixed(2)}</span>
-            </div>
-            <p className="text-sm text-green-700 mt-1">
-              (${convertSARToUSD(getCartTotal()).toFixed(2)} دولار أمريكي)
-            </p>
-          </div>
 
           <div className="flex gap-4">
             <button
@@ -463,16 +477,12 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
             </button>
             <button
               onClick={() => {
-                // إذا كانت بيانات العميل متوفرة، انتقل مباشرة للدفع
-                if (customerInfo && customerInfo.name && customerInfo.phone) {
-                  setStep('payment');
-                } else {
-                  setStep('customer');
-                }
+                setStep('customer');
               }}
               className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors"
             >
-              {customerInfo && customerInfo.name && customerInfo.phone ? 'متابعة للدفع' : 'متابعة إلى بيانات العميل'}
+              التالي: بيانات العميل
+              <ArrowRight className="w-5 h-5 mr-2" />
             </button>
           </div>
         </div>
@@ -518,12 +528,13 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
                 <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="email"
-                  value={user?.email || ''}
-                  className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg bg-gray-50"
-                  disabled
+                  required
+                  value={customerForm.email}
+                  onChange={(e) => setCustomerForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="example@domain.com"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">لا يمكن تعديل البريد الإلكتروني</p>
             </div>
 
             <div>
@@ -563,8 +574,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
           <div className="flex gap-4">
             <button
               onClick={() => setStep('review')}
+              disabled={processing}
               className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
             >
+              <ArrowLeft className="w-5 h-5 ml-2" />
               السابق
             </button>
             <button
@@ -575,7 +588,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
               {processing ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                'متابعة للدفع'
+                <>
+                  التالي: الدفع الآمن
+                  <ArrowRight className="w-5 h-5 mr-2" />
+                </>
               )}
             </button>
           </div>
@@ -633,15 +649,30 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
             
             {!isPending && (
               <PayPalButtons
+                forceReRender={[getCartTotal().toFixed(2)]}
                 style={{
                   layout: "vertical",
                   color: "blue",
                   shape: "rect",
-                  label: "pay"
+                  label: "pay",
+                  height: 45
                 }}
                 createOrder={(data, actions) => {
+                  console.log('Creating PayPal order with amount:', convertSARToUSD(getCartTotal()).toFixed(2));
                   return actions.order.create({
                     intent: "CAPTURE",
+                    payment_source: {
+                      paypal: {
+                        experience_context: {
+                          payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
+                          brand_name: "wafarle",
+                          locale: "ar_EG",
+                          landing_page: "LOGIN",
+                          shipping_preference: "NO_SHIPPING",
+                          user_action: "PAY_NOW"
+                        }
+                      }
+                    },
                     purchase_units: [
                       {
                         amount: {
@@ -656,18 +687,26 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
                 onApprove={async (data, actions) => {
                   if (!actions.order) return;
                   
+                  setProcessing(true);
                   try {
+                    console.log('PayPal payment approved:', data);
                     const details = await actions.order.capture();
+                    console.log('PayPal payment captured:', details);
                     await handlePaymentSuccess(details, data);
                   } catch (error) {
+                    console.error('Error in onApprove:', error);
                     handlePaymentError(error);
+                  } finally {
+                    setProcessing(false);
                   }
                 }}
                 onError={(error) => {
+                  console.error('PayPal error:', error);
                   handlePaymentError(error);
                 }}
                 onCancel={() => {
                   console.log('Payment cancelled by user');
+                  setError('تم إلغاء عملية الدفع. يمكنك المحاولة مرة أخرى.');
                 }}
                 disabled={processing}
               />
@@ -685,11 +724,28 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
 
           <div className="flex gap-4">
             <button
-              onClick={() => setStep('customer')}
+              onClick={() => {
+                setError(null);
+                setError(null);
+                setStep('customer');
+              }}
               disabled={processing}
               className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
             >
+              <ArrowLeft className="w-5 h-5 ml-2" />
               السابق
+            </button>
+            <button
+              onClick={() => {
+                if (validateCustomerInfo()) {
+                  setStep('payment');
+                }
+              }}
+              disabled={processing}
+              className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+            >
+              التالي: الدفع الآمن
+              <ArrowRight className="w-5 h-5 mr-2" />
             </button>
           </div>
         </div>

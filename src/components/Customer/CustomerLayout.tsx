@@ -108,6 +108,7 @@ const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children, currentPage, 
 
   const menuItems = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: Home },
+    { id: 'services', label: 'خدماتنا', icon: Package },
     { id: 'store', label: 'متجر الاشتراكات', icon: ShoppingCart },
     { id: 'subscriptions', label: 'اشتراكاتي', icon: Package },
     { id: 'request-subscription', label: 'طلب اشتراك تقليدي', icon: Clock },

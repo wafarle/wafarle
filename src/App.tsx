@@ -13,6 +13,7 @@ import Store from './components/Customer/Store';
 import Checkout from './components/Customer/Checkout';
 import PaymentSuccess from './components/Customer/PaymentSuccess';
 import CustomerProfile from './components/Customer/CustomerProfile';
+import ServicesPage from './components/Customer/ServicesPage';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Products from './components/Products';
@@ -93,6 +94,8 @@ const AppContent: React.FC = () => {
     switch (currentPage) {
       case 'dashboard':
         return <CustomerDashboard onPageChange={handlePageChange} />;
+      case 'services':
+        return <ServicesPage onPageChange={handlePageChange} />;
       case 'store':
         return <Store onPageChange={handlePageChange} />;
       case 'subscriptions':

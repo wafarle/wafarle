@@ -33,12 +33,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       setLoading(false);
       return;
     }
 
+    // التحقق من أن المستخدم مدير
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', email)
+      .maybeSingle();
+    
+    if (!userData || userData.role !== 'admin') {
+      setError('هذا الحساب غير مخول للوصول لصفحة الإدارة');
+      setLoading(false);
+      return;
+    }
     const { error } = await signIn(email, password);
     
     if (error) {

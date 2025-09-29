@@ -69,6 +69,18 @@ const CustomerLoginForm: React.FC<CustomerLoginFormProps> = ({ onToggleMode }) =
       return;
     }
 
+    // التحقق من أن المستخدم عميل وليس مدير
+    const { data: adminData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', normalizedPhone)
+      .maybeSingle();
+    
+    if (adminData?.role === 'admin') {
+      setError('هذا حساب إدارة. يرجى استخدام صفحة تسجيل دخول الإدارة');
+      setLoading(false);
+      return;
+    }
     const { error } = await signIn(phone, password, true);
     
     if (error) {

@@ -237,7 +237,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
             name: customerForm.name.trim(),
             email: customerForm.email.trim(),
             phone: customerForm.phone.trim(),
-            address: customerForm.address.trim()
+            address: customerForm.address.trim(),
             auth_user_id: user?.id || null
           }])
           .select()

@@ -23,6 +23,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
+  isCustomer: boolean;
+  userType: 'admin' | 'customer' | 'unknown';
   signUp: (emailOrPhone: string, password: string, isPhone?: boolean) => Promise<{ error: any }>;
   signIn: (emailOrPhone: string, password: string, isPhone?: boolean) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -43,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userType, setUserType] = useState<'admin' | 'customer' | 'unknown'>('unknown');
 
   useEffect(() => {
     // Get initial session
@@ -58,12 +62,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        determineUserType(session.user);
+      } else {
+        setUserType('unknown');
+      }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // تحديد نوع المستخدم بناءً على URL وبيانات المصادقة
+  const determineUserType = async (user: User) => {
+    const currentPath = window.location.pathname;
+    
+    // إذا كان في صفحة الإدارة، فهو مدير
+    if (currentPath.startsWith('/admin')) {
+      // التحقق من أن المستخدم مدير فعلاً
+      if (user.email) {
+        // البحث في جدول المستخدمين
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        if (userData?.role === 'admin') {
+          setUserType('admin');
+        } else {
+          // ليس مدير، تسجيل خروج
+          await signOut();
+        }
+      } else {
+        // لا يوجد بريد إلكتروني، ليس مدير
+        await signOut();
+      }
+    } else {
+      // في صفحة العملاء
+      if (user.phone || user.user_metadata?.phone) {
+        setUserType('customer');
+      } else if (user.email) {
+        // التحقق إذا كان عميل مسجل بالبريد
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        if (customerData) {
+          setUserType('customer');
+        } else {
+          // ليس عميل، تسجيل خروج
+          await signOut();
+        }
+      } else {
+        await signOut();
+      }
+    }
+  };
   const signUp = async (emailOrPhone: string, password: string, isPhone: boolean = false) => {
     if (isPhone) {
       const normalizedPhone = normalizePhone(emailOrPhone);
@@ -112,6 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setUserType('unknown');
   };
 
   const changePassword = async (newPassword: string) => {
@@ -128,6 +186,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
+    isAdmin: userType === 'admin',
+    isCustomer: userType === 'customer',
+    userType,
     signUp,
     signIn,
     signOut,

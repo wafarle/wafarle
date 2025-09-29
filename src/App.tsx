@@ -30,7 +30,7 @@ import SubscriptionRequests from './components/SubscriptionRequests';
 import CustomerAccounts from './components/CustomerAccounts';
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, userType } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -90,6 +90,21 @@ const AppContent: React.FC = () => {
     return isAdmin ? <AuthPage /> : <CustomerAuthPage />;
   }
 
+  // التحقق من تطابق نوع المستخدم مع الصفحة المطلوبة
+  if (isAdmin && userType === 'customer') {
+    // عميل يحاول الوصول لصفحة الإدارة
+    return <CustomerAuthPage />;
+  }
+  
+  if (!isAdmin && userType === 'admin') {
+    // مدير يحاول الوصول لصفحة العملاء
+    return <AuthPage />;
+  }
+  
+  if (userType === 'unknown') {
+    // نوع مستخدم غير معروف
+    return isAdmin ? <AuthPage /> : <CustomerAuthPage />;
+  }
   const renderCustomerPage = () => {
     switch (currentPage) {
       case 'dashboard':

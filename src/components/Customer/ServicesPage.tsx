@@ -51,7 +51,7 @@ interface ServicesPageProps {
 }
 
 const ServicesPage: React.FC<ServicesPageProps> = ({ onPageChange }) => {
-  const { cart, addToCart, getCartTotal, getCartItemsCount } = useCart();
+  const { cart, addToCart, getCartTotal, getItemsCount } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -275,9 +275,9 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onPageChange }) => {
             >
               <ShoppingCart className="w-5 h-5 ml-2" />
               السلة
-              {getCartItemsCount() > 0 && (
+              {getItemsCount() > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
-                  {getCartItemsCount()}
+                  {getItemsCount()}
                 </span>
               )}
             </button>
@@ -664,7 +664,7 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onPageChange }) => {
                       <span className="text-green-600">ر.س {getCartTotal().toFixed(2)}</span>
                     </div>
                     <p className="text-sm text-green-700 mt-2">
-                      ({getCartItemsCount()} منتج في السلة)
+                      ({getItemsCount()} منتج في السلة)
                     </p>
                   </div>
 
@@ -677,7 +677,7 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onPageChange }) => {
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 flex items-center justify-center text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
                     <CreditCard className="w-5 h-5 ml-3" />
-                    إتمام الشراء الآن ({getCartItemsCount()} منتج)
+                    إتمام الشراء الآن ({getItemsCount()} منتج)
                   </button>
                 </div>
               )}
@@ -687,7 +687,7 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onPageChange }) => {
       )}
 
       {/* Floating Cart Button */}
-      {getCartItemsCount() > 0 && (
+      {getItemsCount() > 0 && (
         <div className="fixed bottom-6 left-6 z-40">
           <button
             onClick={() => setShowCartModal(true)}
@@ -696,7 +696,7 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onPageChange }) => {
             <div className="relative">
               <ShoppingCart className="w-6 h-6" />
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                {getCartItemsCount()}
+                {getItemsCount()}
               </span>
             </div>
           </button>

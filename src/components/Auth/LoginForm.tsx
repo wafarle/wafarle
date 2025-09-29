@@ -40,18 +40,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
       return;
     }
 
-    // التحقق من أن المستخدم مدير
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('email', email)
-      .maybeSingle();
-    
-    if (!userData || userData.role !== 'admin') {
-      setError('هذا الحساب غير مخول للوصول لصفحة الإدارة');
-      setLoading(false);
-      return;
-    }
     const { error } = await signIn(email, password);
     
     if (error) {

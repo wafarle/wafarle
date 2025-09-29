@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   CreditCard, 
@@ -15,6 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface CustomerLayoutProps {
   children: React.ReactNode;
@@ -24,7 +25,86 @@ interface CustomerLayoutProps {
 
 const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children, currentPage, onPageChange }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [customerName, setCustomerName] = useState<string | null>(null);
+  const [loadingCustomer, setLoadingCustomer] = useState(true);
   const { signOut, user } = useAuth();
+
+  // تحميل اسم العميل
+  useEffect(() => {
+    const fetchCustomerName = async () => {
+      if (!user) return;
+
+      try {
+        let customer = null;
+        
+        // البحث بمعرف المصادقة أولاً
+        if (user.id) {
+          const { data } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('auth_user_id', user.id)
+            .maybeSingle();
+          
+          if (data) customer = data;
+        }
+        
+        // البحث بالبريد الإلكتروني
+        if (!customer && user.email) {
+          const { data } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('email', user.email)
+            .maybeSingle();
+          
+          if (data) customer = data;
+        }
+
+        // البحث برقم الهاتف
+        if (!customer) {
+          const phoneNumbers = [
+            user.phone,
+            user.user_metadata?.phone
+          ].filter(Boolean);
+          
+          for (const phoneNumber of phoneNumbers) {
+            if (customer) break;
+            
+            const { data: phoneAuthData } = await supabase
+              .from('customers')
+              .select('name')
+              .eq('phone_auth', phoneNumber)
+              .maybeSingle();
+            
+            if (phoneAuthData) {
+              customer = phoneAuthData;
+              break;
+            }
+            
+            const { data: phoneData } = await supabase
+              .from('customers')
+              .select('name')
+              .eq('phone', phoneNumber)
+              .maybeSingle();
+            
+            if (phoneData) {
+              customer = phoneData;
+              break;
+            }
+          }
+        }
+        
+        if (customer) {
+          setCustomerName(customer.name);
+        }
+      } catch (error) {
+        console.error('Error fetching customer name:', error);
+      } finally {
+        setLoadingCustomer(false);
+      }
+    };
+
+    fetchCustomerName();
+  }, [user]);
 
   const menuItems = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: Home },
@@ -115,9 +195,13 @@ const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children, currentPage, 
                 </span>
               </div>
               <div className="mr-3">
-                <p className="text-sm font-medium text-gray-900 truncate max-w-32">
-                  {user?.email || 'عميل'}
-                </p>
+                {loadingCustomer ? (
+                  <div className="text-sm text-gray-500">جاري التحميل...</div>
+                ) : (
+                  <p className="text-sm font-medium text-gray-900 truncate max-w-32">
+                    {customerName || user?.email || 'عميل'}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">عميل</p>
               </div>
             </div>
@@ -153,7 +237,9 @@ const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children, currentPage, 
                   3
                 </span>
               </button>
-              <span className="text-sm text-gray-600">مرحباً، {user?.email || 'عميل'}</span>
+              <span className="text-sm text-gray-600">
+                مرحباً، {loadingCustomer ? 'جاري التحميل...' : (customerName || user?.email || 'عميل')}
+              </span>
               <button
                 onClick={handleSignOut}
                 className="lg:hidden p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

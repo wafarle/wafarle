@@ -83,7 +83,19 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
       let data = null;
       let error = null;
       
-      // البحث بالبريد الإلكتروني أولاً
+      // البحث بمعرف المصادقة أولاً
+      if (user.id) {
+        const result = await supabase
+          .from('customers')
+          .select('*')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
+      }
+      
+      // البحث بالبريد الإلكتروني إذا لم يوجد
       if (user.email) {
         const result = await supabase
           .from('customers')
@@ -118,6 +130,43 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
           phone: data.phone || '',
           address: data.address || ''
         });
+        
+        // إذا كانت البيانات متوفرة، انتقل مباشرة للدفع
+        if (data.name && data.phone) {
+          setStep('payment');
+        }
+      } else {
+        // إنشاء عميل جديد إذا لم يوجد
+        const newCustomerData = {
+          name: user?.user_metadata?.customer_name || user?.email?.split('@')[0] || 'عميل جديد',
+          email: user?.email || '',
+          phone: user?.phone || user?.user_metadata?.phone || '',
+          phone_auth: user?.phone || user?.user_metadata?.phone || null,
+          address: '',
+          auth_user_id: user.id
+        };
+        
+        const { data: newCustomer, error: createError } = await supabase
+          .from('customers')
+          .insert([newCustomerData])
+          .select('*')
+          .single();
+        
+        if (createError) {
+          console.error('Error creating customer:', createError);
+        } else {
+          setCustomerInfo(newCustomer);
+          setCustomerForm({
+            name: newCustomer.name || '',
+            phone: newCustomer.phone || '',
+            address: newCustomer.address || ''
+          });
+          
+          // إذا كانت البيانات الأساسية متوفرة، انتقل للدفع
+          if (newCustomer.name && (newCustomer.phone || newCustomer.phone_auth)) {
+            setStep('payment');
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching customer info:', err);
@@ -343,6 +392,41 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">مراجعة طلبك</h2>
           
+          {/* عرض بيانات العميل المحفوظة */}
+          {customerInfo && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center mb-2">
+                <CheckCircle className="w-5 h-5 text-green-600 ml-2" />
+                <h3 className="font-semibold text-green-800">بياناتك المحفوظة</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-green-700">الاسم:</span>
+                  <span className="text-green-800 mr-2">{customerInfo.name}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-green-700">البريد الإلكتروني:</span>
+                  <span className="text-green-800 mr-2">{customerInfo.email}</span>
+                </div>
+                {customerInfo.phone && (
+                  <div>
+                    <span className="font-medium text-green-700">رقم الهاتف:</span>
+                    <span className="text-green-800 mr-2">{customerInfo.phone}</span>
+                  </div>
+                )}
+                {customerInfo.address && (
+                  <div className="md:col-span-2">
+                    <span className="font-medium text-green-700">العنوان:</span>
+                    <span className="text-green-800 mr-2">{customerInfo.address}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-green-600 mt-2">
+                ✓ سيتم استخدام هذه البيانات في الطلب
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-4 mb-6">
             {cart.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -378,10 +462,17 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
               العودة للمتجر
             </button>
             <button
-              onClick={() => setStep('customer')}
+              onClick={() => {
+                // إذا كانت بيانات العميل متوفرة، انتقل مباشرة للدفع
+                if (customerInfo && customerInfo.name && customerInfo.phone) {
+                  setStep('payment');
+                } else {
+                  setStep('customer');
+                }
+              }}
               className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors"
             >
-              متابعة إلى بيانات العميل
+              {customerInfo && customerInfo.name && customerInfo.phone ? 'متابعة للدفع' : 'متابعة إلى بيانات العميل'}
             </button>
           </div>
         </div>
@@ -391,6 +482,15 @@ const Checkout: React.FC<CheckoutProps> = ({ onPageChange }) => {
       {step === 'customer' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">بيانات العميل</h2>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <User className="w-5 h-5 text-blue-600 ml-2" />
+              <span className="text-blue-800 text-sm">
+                يرجى تأكيد أو تحديث بياناتك للمتابعة
+              </span>
+            </div>
+          </div>
           
           <div className="space-y-4 mb-6">
             <div>

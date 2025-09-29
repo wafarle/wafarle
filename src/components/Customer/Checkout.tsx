@@ -3,6 +3,7 @@ import {
   CreditCard, 
   ShoppingCart, 
   Check, 
+  CheckCircle,
   Loader2, 
   AlertTriangle,
   ArrowLeft,
